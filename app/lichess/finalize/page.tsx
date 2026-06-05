@@ -1,4 +1,5 @@
 import { getStore } from "@/lib/server/store";
+import { FinalizeAutoClose } from "@/components/finalize-auto-close";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +55,7 @@ export default async function FinalizePage({
   if (h.status === "completed") {
     return (
       <main style={wrap}>
+        <FinalizeAutoClose completed username={h.username} />
         <h1 style={{ fontSize: 20 }}>Connected ✓</h1>
         <p style={{ color: "#6b6b80" }}>
           Linked <strong>{h.username}</strong>. You can close this tab and return to Chess Wager.
