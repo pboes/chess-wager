@@ -19,7 +19,7 @@
  *
  * For local `pnpm dev` a JSON file backend is used; in-memory is the last resort.
  */
-import type { LichessConnection } from "@/lib/lichess";
+import type { LichessConnection, LichessHandoff } from "@/lib/lichess";
 import type { Challenge } from "@/lib/challenge/types";
 
 export interface StoreBackend {
@@ -48,6 +48,10 @@ export interface StoreBackend {
   setLichess(address: string, conn: LichessConnection): Promise<void>;
   deleteLichess(address: string): Promise<void>;
   listLichess(): Promise<LichessConnection[]>;
+
+  /** Transient OAuth handoff (short TTL), keyed by its token. */
+  getHandoff(token: string): Promise<LichessHandoff | null>;
+  setHandoff(handoff: LichessHandoff): Promise<void>;
 }
 
 // ─────────────────────────────── Redis ───────────────────────────────
@@ -61,7 +65,10 @@ const K = {
   usedgame: "cw:usedgame",
   settle: (id: string) => `cw:settle:${id}`,
   lichess: "circles:lichess", // shared with the puzzle app
+  handoff: (t: string) => `cw:lichess-handoff:${t}`,
 };
+
+const HANDOFF_TTL = 900; // seconds
 
 const parse = <T>(v: string | null): T | null => {
   if (v == null) return null;
@@ -142,6 +149,12 @@ class RedisBackend implements StoreBackend {
       .map((v) => parse<LichessConnection>(v))
       .filter((c): c is LichessConnection => !!c);
   }
+  async getHandoff(token: string) {
+    return parse<LichessHandoff>(await this.redis.get(K.handoff(token)));
+  }
+  async setHandoff(h: LichessHandoff) {
+    await this.redis.set(K.handoff(h.token), JSON.stringify(h), "EX", HANDOFF_TTL);
+  }
 }
 
 // ──────────────────────── File / memory (dev) ────────────────────────
@@ -153,6 +166,7 @@ interface Doc {
   usedgame: string[];
   settled: string[];
   lichess: Record<string, LichessConnection>;
+  handoffs: Record<string, LichessHandoff>;
 }
 const emptyDoc = (): Doc => ({
   challenges: {},
@@ -161,6 +175,7 @@ const emptyDoc = (): Doc => ({
   usedgame: [],
   settled: [],
   lichess: {},
+  handoffs: {},
 });
 
 abstract class JsonDocBackend implements StoreBackend {
@@ -250,6 +265,14 @@ abstract class JsonDocBackend implements StoreBackend {
   }
   async listLichess() {
     return Object.values((await this.load()).lichess);
+  }
+  async getHandoff(token: string) {
+    return (await this.load()).handoffs[token] ?? null;
+  }
+  async setHandoff(h: LichessHandoff) {
+    await this.mutate((d) => {
+      d.handoffs[h.token] = h;
+    });
   }
 }
 

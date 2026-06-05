@@ -1,24 +1,22 @@
 /**
- * Lichess OAuth2 (Authorization Code + PKCE) config and browser helpers.
+ * Lichess OAuth2 (Authorization Code + PKCE) config + helpers.
  *
  * Lichess is a public client: no app registration, no client secret — you pick
  * an arbitrary `client_id` and the only accepted challenge method is S256.
  * Authorize at `${host}/oauth`, exchange at `${host}/api/token`, identify via
  * `${host}/api/account`.
  *
- * We run the consent in a popup (Lichess can't be iframed) and exchange the
- * code server-side, so the access token never touches the client.
+ * The consent can't run in a popup inside the Circles host: the miniapp is in a
+ * sandboxed iframe, so a popup it opens inherits the sandbox, and Chrome blocks
+ * a sandboxed popup from loading lichess.org's COOP page
+ * (ERR_BLOCKED_BY_RESPONSE). Instead we use a **handoff**: sign in the iframe,
+ * store a token, then the user opens a real top-level tab (link or copy-paste)
+ * where redirect-based OAuth runs server-side. The token rides in the `state`.
  */
 export const LICHESS_HOST = "https://lichess.org";
 export const LICHESS_CLIENT_ID = "daily-chess-duel";
 /** Empty scope = identify only (read the public account/username). */
 export const LICHESS_SCOPES: string[] = [];
-
-/** Popup callback URL — works on any deployment (preview or prod) since Lichess
- *  doesn't pre-register redirect URIs; authorize & token just have to match. */
-export function lichessRedirectUri(): string {
-  return `${window.location.origin}/lichess/callback`;
-}
 
 function base64url(bytes: Uint8Array): string {
   let s = "";
@@ -60,4 +58,20 @@ export interface LichessConnection {
   connectedAt: number;
   /** Whether the Circles-side wallet signature was verified (the 2nd handshake). */
   sigVerified: boolean;
+}
+
+/** Transient state carrying one connection attempt across the new-tab OAuth. */
+export interface LichessHandoff {
+  token: string;
+  address: string; // lowercased
+  message: string;
+  signature: string;
+  sigVerified: boolean;
+  /** PKCE verifier + redirect, set when the OAuth tab starts. */
+  codeVerifier?: string;
+  redirectUri?: string;
+  status: "pending" | "completed" | "failed";
+  username?: string;
+  error?: string;
+  createdAt: number;
 }
