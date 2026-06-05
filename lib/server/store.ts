@@ -42,6 +42,9 @@ export interface StoreBackend {
 
   /** Shared Lichess connection for a Circles address. */
   getLichess(address: string): Promise<LichessConnection | null>;
+  /** Reverse lookup — the connection that owns a given Lichess id, if any.
+   *  Used to enforce one Lichess account ↔ one Circles wallet. */
+  getLichessByLichessId(lichessId: string): Promise<LichessConnection | null>;
   setLichess(address: string, conn: LichessConnection): Promise<void>;
   deleteLichess(address: string): Promise<void>;
   listLichess(): Promise<LichessConnection[]>;
@@ -118,6 +121,14 @@ class RedisBackend implements StoreBackend {
 
   async getLichess(address: string) {
     return parse<LichessConnection>(await this.redis.hget(K.lichess, address.toLowerCase()));
+  }
+  async getLichessByLichessId(lichessId: string) {
+    const all = await this.redis.hgetall(K.lichess);
+    for (const v of Object.values(all)) {
+      const c = parse<LichessConnection>(v);
+      if (c && c.lichessId === lichessId) return c;
+    }
+    return null;
   }
   async setLichess(address: string, conn: LichessConnection) {
     await this.redis.hset(K.lichess, address.toLowerCase(), JSON.stringify(conn));
@@ -222,6 +233,10 @@ abstract class JsonDocBackend implements StoreBackend {
 
   async getLichess(address: string) {
     return (await this.load()).lichess[address.toLowerCase()] ?? null;
+  }
+  async getLichessByLichessId(lichessId: string) {
+    const d = await this.load();
+    return Object.values(d.lichess).find((c) => c.lichessId === lichessId) ?? null;
   }
   async setLichess(address: string, conn: LichessConnection) {
     await this.mutate((d) => {

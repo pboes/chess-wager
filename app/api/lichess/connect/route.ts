@@ -105,6 +105,18 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Could not read Lichess account" }, { status: 502 });
   }
 
+  // Enforce one Lichess account ↔ one Circles wallet. If this Lichess id is
+  // already linked to a *different* address, refuse — don't store anything.
+  const owner = await getStore().getLichessByLichessId(lichessId);
+  if (owner && owner.address.toLowerCase() !== addr.toLowerCase()) {
+    return NextResponse.json(
+      {
+        error: `Lichess account "${username}" is already linked to a different Circles wallet (${owner.address}). Disconnect it there first.`,
+      },
+      { status: 409 }
+    );
+  }
+
   const conn = {
     username,
     lichessId,

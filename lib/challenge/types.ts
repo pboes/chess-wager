@@ -28,10 +28,10 @@ export interface TimeControl {
 }
 
 export const TIME_CONTROLS: TimeControl[] = [
-  { key: "10+0", label: "10 min", limit: 600, increment: 0 },
-  { key: "5+3", label: "5 + 3", limit: 300, increment: 3 },
-  { key: "3+2", label: "3 + 2", limit: 180, increment: 2 },
-  { key: "5+0", label: "5 min", limit: 300, increment: 0 },
+  { key: "10+0", label: "10 min", limit: 600, increment: 0 }, // rapid
+  { key: "5+3", label: "5 + 3", limit: 300, increment: 3 }, // blitz
+  { key: "3+2", label: "3 + 2", limit: 180, increment: 2 }, // blitz
+  { key: "1+0", label: "1 min", limit: 60, increment: 0 }, // bullet
 ];
 
 export const timeControlByKey = (k: string): TimeControl | undefined =>
