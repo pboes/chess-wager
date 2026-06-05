@@ -82,20 +82,13 @@ export function LichessConnect() {
       /* about:blank not writable in some hosts — ignore */
     }
 
-    // ── Circles side: start the wallet signature *within* the click gesture,
-    // but DON'T block the tab on it. We capture the promise and await it only
-    // once we have the OAuth code — so the tab loads Lichess immediately instead
-    // of sitting blank for the whole signing wait. ──
     const nonce = randomString(8);
     const message = `Link my Lichess account to Circles ${address}\nnonce: ${nonce}`;
-    setPhase("signing");
-    const sigPromise: Promise<string | undefined> = isMiniappHost
-      ? signMessage(message)
-          .then((r) => r.signature)
-          .catch(() => undefined)
-      : Promise.resolve(undefined);
 
-    // ── Lichess side: drive the already-open tab to the OAuth consent (PKCE). ──
+    // ── Lichess side FIRST: the new tab steals focus, so let the user authorize
+    // there before we ask for the wallet signature. Drive the open tab straight
+    // to the OAuth consent (PKCE) — no blank wait. The signature comes after the
+    // code returns and focus is back in the app. ──
     const verifier = randomString(32);
     const challenge = await pkceChallenge(verifier);
     const state = randomString(16);
@@ -118,14 +111,20 @@ export function LichessConnect() {
         setPhase("error");
         return;
       }
-      setPhase("connecting");
-      // The signature ran concurrently while the user authorized on Lichess.
-      const signature = await sigPromise;
-      if (isMiniappHost && !signature) {
-        setError("Wallet signature was declined.");
-        setPhase("error");
-        return;
+      // ── Circles side SECOND: Lichess is authorized and focus is back in the
+      // app — now ask for the wallet signature. ──
+      let signature: string | undefined;
+      if (isMiniappHost) {
+        setPhase("signing");
+        try {
+          signature = (await signMessage(message)).signature;
+        } catch {
+          setError("Wallet signature was declined.");
+          setPhase("error");
+          return;
+        }
       }
+      setPhase("connecting");
       try {
         const res = await fetch("/api/lichess/connect", {
           method: "POST",
