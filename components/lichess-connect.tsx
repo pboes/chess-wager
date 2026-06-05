@@ -202,11 +202,13 @@ export function LichessConnect() {
                 <ExternalLink className="h-4 w-4" /> Open Lichess sign-in
               </Button>
             </a>
-            <details className="text-xs text-[var(--muted-foreground)]">
-              <summary className="cursor-pointer select-none">
-                Didn’t open, or showed an error? Copy this link into a new tab
-              </summary>
-              <div className="mt-2 flex items-center gap-2">
+            <div className="space-y-1.5 rounded-lg border border-[var(--border)] bg-[var(--secondary)]/40 p-2.5">
+              <p className="text-xs text-[var(--muted-foreground)]">
+                If that tab shows an error or a blank page (some browsers block it),
+                copy this link and paste it into a new browser tab instead — that
+                always works:
+              </p>
+              <div className="flex items-center gap-2">
                 <code className="block flex-1 overflow-x-auto rounded-md border border-[var(--border)] bg-[var(--background)] p-2 font-mono text-[11px] break-all select-all">
                   {finalizeUrl}
                 </code>
@@ -214,7 +216,7 @@ export function LichessConnect() {
                   <Copy className="h-3.5 w-3.5" /> {copied ? "Copied" : "Copy"}
                 </Button>
               </div>
-            </details>
+            </div>
           </>
         ) : (
           <>
