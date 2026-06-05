@@ -41,7 +41,7 @@ export default function Home() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <div className="space-y-4">
-          <LichessConnect />
+          <LichessConnect onConnectionChange={setLichessConnected} />
           {isConnected && lichessConnected && (
             <CreateChallenge onCreated={() => setRefreshKey((k) => k + 1)} />
           )}

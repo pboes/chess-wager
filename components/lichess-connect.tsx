@@ -10,7 +10,11 @@ import { CheckCircle2, Copy, Link2, Loader2, ShieldCheck, Unlink } from "lucide-
 
 type Phase = "idle" | "signing" | "awaiting" | "connected" | "error";
 
-export function LichessConnect() {
+export function LichessConnect({
+  onConnectionChange,
+}: {
+  onConnectionChange?: (connected: boolean) => void;
+} = {}) {
   const { address, isConnected, isMiniappHost, signMessage } = useWallet();
   const [phase, setPhase] = React.useState<Phase>("idle");
   const [username, setUsername] = React.useState<string | null>(null);
@@ -32,7 +36,8 @@ export function LichessConnect() {
     setUsername(name);
     setSigVerified(true);
     setPhase("connected");
-  }, []);
+    onConnectionChange?.(true);
+  }, [onConnectionChange]);
 
   // Load any existing connection for this address.
   React.useEffect(() => {
@@ -54,6 +59,7 @@ export function LichessConnect() {
         } else {
           setPhase("idle");
         }
+        onConnectionChange?.(Boolean(data.connected));
       } catch {
         if (!cancelled) setPhase("idle");
       }
@@ -61,7 +67,7 @@ export function LichessConnect() {
     return () => {
       cancelled = true;
     };
-  }, [address]);
+  }, [address, onConnectionChange]);
 
   // Instant completion from the smooth popup route (same-origin postMessage).
   React.useEffect(() => {
@@ -171,7 +177,8 @@ export function LichessConnect() {
     setUsername(null);
     setSigVerified(false);
     setPhase("idle");
-  }, [address]);
+    onConnectionChange?.(false);
+  }, [address, onConnectionChange]);
 
   const copy = React.useCallback(async () => {
     if (!startUrl) return;
