@@ -7,9 +7,19 @@ import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useStake } from "@/hooks/use-stake";
 import type { Challenge } from "@/lib/challenge/types";
-import { Copy, ExternalLink, Loader2, RefreshCw, Trophy } from "lucide-react";
+import { Clock, Copy, ExternalLink, Loader2, RefreshCw, Trophy } from "lucide-react";
 
 const STEPS = ["Accept", "Play", "Settle"] as const;
+
+function formatRemaining(ms: number): string {
+  if (ms <= 0) return "expired";
+  const totalMin = Math.floor(ms / 60000);
+  const h = Math.floor(totalMin / 60);
+  const m = totalMin % 60;
+  if (h >= 1) return `${h}h ${m}m`;
+  if (m >= 1) return `${m}m`;
+  return "<1m";
+}
 
 /** created → Accept(0), accepted → Play(1), terminal → all done(3). */
 function activeStep(status: string): number {
@@ -66,6 +76,14 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
   const [refreshing, setRefreshing] = React.useState(false);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+  const [now, setNow] = React.useState(0);
+
+  // Tick for the expiration countdown (set on mount to avoid SSR mismatch).
+  React.useEffect(() => {
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 30000);
+    return () => clearInterval(t);
+  }, []);
 
   const me = address?.toLowerCase() ?? "";
 
@@ -212,6 +230,15 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
               </div>
 
               <Stepper active={activeStep(c.status)} />
+
+              {c.status === "created" && now > 0 && (
+                <p className="flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]">
+                  <Clock className="h-3 w-3" />
+                  {c.expiresAt - now > 0
+                    ? `Expires in ${formatRemaining(c.expiresAt - now)}`
+                    : "Expired — reclaim available"}
+                </p>
+              )}
 
               {/* Stage 1 — opponent accepts. */}
               {c.status === "created" && !mine && (
