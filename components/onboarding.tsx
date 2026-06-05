@@ -69,20 +69,26 @@ export function Onboarding({
           className="h-16 w-16 rounded-2xl"
         />
         <h2 className="text-xl font-bold">Welcome to Chess Wager</h2>
+        <p className="text-sm text-[var(--muted-foreground)]">It’s Lichess — with stakes.</p>
         <ul className="space-y-1.5 text-left text-sm">
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Challenge a friend to a game on Lichess</span>
+            <span>Get a Circles account — your own currency, just for being you</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Both put up a small stake</span>
+            <span>Connect it to your Lichess</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Winner takes the pot</span>
+            <span>Challenge a friend — you both stake</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-[var(--primary)]">♟</span>
+            <span>Play on Lichess — winner takes the pot</span>
           </li>
         </ul>
+        <p className="text-xs text-[var(--muted-foreground)]">Two quick steps to get started:</p>
       </div>
 
       {/* Step 1 — Circles account */}
@@ -112,8 +118,10 @@ export function Onboarding({
           ) : (
             <>
               <p className="text-sm text-[var(--muted-foreground)]">
-                This holds your stake and your winnings. No seed phrase — just a passkey on
-                your device. We’ll set it up in a few taps.
+                This holds your stake and your winnings.{" "}
+                <strong className="text-[var(--foreground)]">All you need is a passkey</strong>{" "}
+                — created by your phone or password manager (Face ID, fingerprint, or your
+                password app). No seed phrase to write down.
               </p>
               <Button className="w-full" disabled={creating} onClick={create}>
                 {creating ? (
