@@ -59,15 +59,28 @@ export function Onboarding({
   return (
     <div className="mx-auto w-full max-w-md space-y-4">
       {/* Pitch */}
-      <div className="space-y-2 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--primary)] text-2xl text-white">
-          ♞
-        </div>
+      <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-center">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/chess-puzzle-avatar-512.png"
+          alt="Chess Wager"
+          className="h-16 w-16 rounded-2xl"
+        />
         <h2 className="text-xl font-bold">Welcome to Chess Wager</h2>
-        <p className="mx-auto max-w-sm text-sm text-[var(--muted-foreground)]">
-          Spice up your Lichess games — challenge a friend, both put up a small stake, play
-          it out on Lichess, and the winner takes the pot. Two quick steps to get going:
-        </p>
+        <ul className="space-y-1.5 text-left text-sm">
+          <li className="flex items-start gap-2">
+            <span className="text-[var(--primary)]">♟</span>
+            <span>Challenge a friend to a game on Lichess</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-[var(--primary)]">♟</span>
+            <span>Both put up a small stake</span>
+          </li>
+          <li className="flex items-start gap-2">
+            <span className="text-[var(--primary)]">♟</span>
+            <span>Winner takes the pot</span>
+          </li>
+        </ul>
       </div>
 
       {/* Step 1 — Circles account */}

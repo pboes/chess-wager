@@ -2,7 +2,6 @@ import type { Metadata, Viewport } from "next";
 import { Space_Grotesk } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "@/components/wallet/wallet-provider";
-import { Header } from "@/components/header";
 
 // Self-hosted at build time (no runtime font requests → no CSP changes).
 const spaceGrotesk = Space_Grotesk({
@@ -37,8 +36,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={spaceGrotesk.variable}>
       <body>
         <WalletProvider>
-          <div className="min-h-dvh px-4 pb-12">
-            <Header />
+          <div className="min-h-dvh px-4 pb-12 pt-5">
             <main>{children}</main>
           </div>
         </WalletProvider>
