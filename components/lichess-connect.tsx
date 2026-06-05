@@ -73,31 +73,35 @@ export function LichessConnect() {
       return;
     }
 
-    // ── Circles side: prove the address by signing (host only). ──
-    const nonce = randomString(8);
-    const message = `Link my Lichess account to Circles ${address}\nnonce: ${nonce}`;
-    let signature: string | undefined;
-    if (isMiniappHost) {
-      setPhase("signing");
-      try {
-        signature = (await signMessage(message)).signature;
-      } catch {
-        popup.close();
-        setError("Wallet signature was declined.");
-        setPhase("error");
-        return;
-      }
+    // Friendly placeholder so the tab isn't a confusing blank while we redirect.
+    try {
+      popup.document.write(
+        "<title>Connecting…</title><body style='font:16px system-ui;padding:2rem;color:#444'>Opening Lichess… you can confirm the wallet signature back in the app.</body>"
+      );
+    } catch {
+      /* about:blank not writable in some hosts — ignore */
     }
 
-    // ── Lichess side: drive the already-open popup to the OAuth consent (PKCE). ──
+    // ── Circles side: start the wallet signature *within* the click gesture,
+    // but DON'T block the tab on it. We capture the promise and await it only
+    // once we have the OAuth code — so the tab loads Lichess immediately instead
+    // of sitting blank for the whole signing wait. ──
+    const nonce = randomString(8);
+    const message = `Link my Lichess account to Circles ${address}\nnonce: ${nonce}`;
+    setPhase("signing");
+    const sigPromise: Promise<string | undefined> = isMiniappHost
+      ? signMessage(message)
+          .then((r) => r.signature)
+          .catch(() => undefined)
+      : Promise.resolve(undefined);
+
+    // ── Lichess side: drive the already-open tab to the OAuth consent (PKCE). ──
     const verifier = randomString(32);
     const challenge = await pkceChallenge(verifier);
     const state = randomString(16);
     const redirectUri = lichessRedirectUri();
-    const authUrl = buildAuthorizeUrl({ challenge, state, redirectUri });
-
+    popup.location.href = buildAuthorizeUrl({ challenge, state, redirectUri });
     setPhase("authorizing");
-    popup.location.href = authUrl;
 
     const onMessage = async (ev: MessageEvent) => {
       if (ev.origin !== window.location.origin) return;
@@ -115,6 +119,13 @@ export function LichessConnect() {
         return;
       }
       setPhase("connecting");
+      // The signature ran concurrently while the user authorized on Lichess.
+      const signature = await sigPromise;
+      if (isMiniappHost && !signature) {
+        setError("Wallet signature was declined.");
+        setPhase("error");
+        return;
+      }
       try {
         const res = await fetch("/api/lichess/connect", {
           method: "POST",
