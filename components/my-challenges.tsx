@@ -22,6 +22,7 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
   const { stake } = useStake();
   const [challenges, setChallenges] = React.useState<Challenge[]>([]);
   const [busyId, setBusyId] = React.useState<string | null>(null);
+  const [refreshing, setRefreshing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
 
   const me = address?.toLowerCase() ?? "";
@@ -40,6 +41,14 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
   React.useEffect(() => {
     void load();
   }, [load, refreshKey]);
+
+  // Manual refresh with a guaranteed-visible spin so the button feels alive.
+  const refresh = React.useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    await Promise.all([load(), new Promise((r) => setTimeout(r, 450))]);
+    setRefreshing(false);
+  }, [load, refreshing]);
 
   const accept = React.useCallback(
     async (c: Challenge) => {
@@ -98,8 +107,13 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
           <Trophy className="h-5 w-5 text-[var(--primary)]" />
           My challenges
         </CardTitle>
-        <button onClick={load} aria-label="Refresh" className="text-[var(--muted-foreground)]">
-          <RefreshCw className="h-4 w-4" />
+        <button
+          onClick={refresh}
+          disabled={refreshing}
+          aria-label="Refresh"
+          className="text-[var(--muted-foreground)] transition hover:text-[var(--foreground)] disabled:opacity-60"
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
         </button>
       </CardHeader>
       <CardContent className="space-y-3">
