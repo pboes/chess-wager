@@ -1,5 +1,5 @@
 /**
- * Chess Wager store.
+ * Stakemate store.
  *
  * Per-key namespaced model:
  *

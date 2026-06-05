@@ -1,5 +1,5 @@
 /**
- * Shared Circles configuration for Chess Wager.
+ * Shared Circles configuration for Stakemate.
  *
  * All addresses are on Gnosis Chain (chainId 100). The score-groups stack
  * (pathfinder + indexer used by the permissionless-groups package) lives on the
@@ -13,7 +13,7 @@
 import type { Address } from "viem";
 
 /**
- * The dedicated escrow org Safe ("Chess Wager Escrow"). Holds live stakes and
+ * The dedicated escrow org Safe ("Stakemate Escrow"). Holds live stakes and
  * pays winners / refunds, signed by ESCROW_SIGNER_ADDRESS.
  *
  * Hardcoded (not env) on purpose: it's read on the **client** too (to build the

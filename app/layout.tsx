@@ -11,7 +11,7 @@ const spaceGrotesk = Space_Grotesk({
 });
 
 export const metadata: Metadata = {
-  title: "Chess Wager — Circles Mini-App",
+  title: "Stakemate — Circles Mini-App",
   description:
     "Challenge a connected player, stake gCRC, play on Lichess. Winner takes the pot.",
   icons: {
@@ -19,7 +19,7 @@ export const metadata: Metadata = {
     apple: "/chess-puzzle-avatar-512.png",
   },
   openGraph: {
-    title: "Chess Wager",
+    title: "Stakemate",
     description: "Stake gCRC, play on Lichess, winner takes the pot. A Circles mini-app.",
     images: ["/chess-puzzle-avatar-512.png"],
   },

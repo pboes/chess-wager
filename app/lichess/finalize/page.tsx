@@ -46,7 +46,7 @@ export default async function FinalizePage({
       <main style={wrap}>
         <h1 style={{ fontSize: 20 }}>Link expired</h1>
         <p style={{ color: "#6b6b80" }}>
-          Start the connection again from the Chess Wager app, then open the fresh link.
+          Start the connection again from the Stakemate app, then open the fresh link.
         </p>
       </main>
     );
@@ -58,7 +58,7 @@ export default async function FinalizePage({
         <FinalizeAutoClose completed username={h.username} />
         <h1 style={{ fontSize: 20 }}>Connected ✓</h1>
         <p style={{ color: "#6b6b80" }}>
-          Linked <strong>{h.username}</strong>. You can close this tab and return to Chess Wager.
+          Linked <strong>{h.username}</strong>. You can close this tab and return to Stakemate.
         </p>
       </main>
     );
@@ -69,7 +69,7 @@ export default async function FinalizePage({
       <main style={wrap}>
         <h1 style={{ fontSize: 20 }}>Couldn’t connect</h1>
         <p style={{ color: "#b91c1c" }}>{h.error ?? "Something went wrong."}</p>
-        <p style={{ color: "#6b6b80" }}>Start again from the Chess Wager app.</p>
+        <p style={{ color: "#6b6b80" }}>Start again from the Stakemate app.</p>
       </main>
     );
   }

@@ -116,7 +116,7 @@ export function LichessConnect({
     setCopied(false);
     setTabOpened(false);
     if (!isMiniappHost) {
-      setError("Open Chess Wager inside the Circles app to connect.");
+      setError("Open Stakemate inside the Circles app to connect.");
       setPhase("error");
       return;
     }

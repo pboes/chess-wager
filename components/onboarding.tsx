@@ -65,10 +65,10 @@ export function Onboarding({
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src="/chess-puzzle-avatar-512.png"
-          alt="Chess Wager"
+          alt="Stakemate"
           className="h-16 w-16 rounded-2xl"
         />
-        <h2 className="text-xl font-bold">Welcome to Chess Wager</h2>
+        <h2 className="text-xl font-bold">Welcome to Stakemate</h2>
         <p className="text-sm text-[var(--muted-foreground)]">It’s Lichess — with stakes.</p>
         <ul className="space-y-1.5 text-left text-sm">
           <li className="flex items-start gap-2">
@@ -113,7 +113,7 @@ export function Onboarding({
             </p>
           ) : !isMiniappHost ? (
             <p className="text-sm text-[var(--muted-foreground)]">
-              Open Chess Wager inside the Circles app to get started.
+              Open Stakemate inside the Circles app to get started.
             </p>
           ) : (
             <>
@@ -198,7 +198,7 @@ export function Onboarding({
           (group CRC). You can turn your personal CRC into one, or buy it.
         </p>
         <p>
-          In Chess Wager you’ll be able to stake{" "}
+          In Stakemate you’ll be able to stake{" "}
           <strong className="text-[var(--foreground)]">either</strong> — your own personal
           CRC, or a community currency.
         </p>

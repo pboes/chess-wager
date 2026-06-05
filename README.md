@@ -1,4 +1,4 @@
-# Chess Wager
+# Stakemate
 
 A Circles mini-app for staked 1v1 chess. Challenge a connected player, both
 stake gCRC, play the game on Lichess, and the winner takes the pot. Sibling app
