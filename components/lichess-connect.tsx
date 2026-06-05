@@ -17,6 +17,7 @@ export function LichessConnect() {
   const [sigVerified, setSigVerified] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [startUrl, setStartUrl] = React.useState<string | null>(null);
+  const [tabOpened, setTabOpened] = React.useState(false);
   const [copied, setCopied] = React.useState(false);
   const pollRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
   const popupRef = React.useRef<Window | null>(null);
@@ -107,25 +108,14 @@ export function LichessConnect() {
     if (!address) return;
     setError(null);
     setCopied(false);
+    setTabOpened(false);
     if (!isMiniappHost) {
       setError("Open Chess Wager inside the Circles app to connect.");
       setPhase("error");
       return;
     }
 
-    // Open the popup synchronously to keep the click gesture (smooth route). On
-    // some browsers it'll be sandbox-blocked at the Lichess step — the copy-paste
-    // fallback below covers that.
-    const popup = window.open("about:blank", "lichess-oauth", "width=480,height=760");
-    popupRef.current = popup;
-    try {
-      popup?.document.write(
-        "<title>Connecting…</title><body style='font:16px system-ui;padding:2rem;color:#444'>Opening Lichess…</body>"
-      );
-    } catch {
-      /* ignore */
-    }
-
+    // ── Sign FIRST — no tab while we wait for the wallet. ──
     setPhase("signing");
     const nonce = randomString(8);
     const message = `Link my Lichess account to Circles ${address}\nnonce: ${nonce}`;
@@ -133,12 +123,13 @@ export function LichessConnect() {
     try {
       signature = (await signMessage(message)).signature;
     } catch {
-      popup?.close();
       setError("Wallet signature was declined.");
       setPhase("error");
       return;
     }
 
+    // Store the handoff, get the OAuth start URL.
+    let token: string;
     try {
       const res = await fetch("/api/lichess/handoff/store", {
         method: "POST",
@@ -147,21 +138,27 @@ export function LichessConnect() {
       });
       const data = await res.json();
       if (!res.ok || !data.token) {
-        popup?.close();
         setError(data.error ?? "Couldn’t start the connection.");
         setPhase("error");
         return;
       }
-      const url = `${window.location.origin}/api/lichess/oauth/start?token=${data.token}`;
-      setStartUrl(url);
-      if (popup) popup.location.href = url; // drive the smooth popup to Lichess
-      setPhase("awaiting");
-      startPolling(data.token);
+      token = data.token;
     } catch {
-      popup?.close();
       setError("Couldn’t start the connection.");
       setPhase("error");
+      return;
     }
+
+    const url = `${window.location.origin}/api/lichess/oauth/start?token=${token}`;
+    setStartUrl(url);
+    setPhase("awaiting");
+    startPolling(token);
+
+    // Now (after signing) open the Lichess tab. If the gesture lapsed during
+    // signing and the host blocks it, the copy-paste fallback is surfaced.
+    const popup = window.open(url, "lichess-oauth", "width=480,height=760");
+    popupRef.current = popup;
+    setTabOpened(Boolean(popup));
   }, [address, isMiniappHost, signMessage, startPolling]);
 
   const disconnect = React.useCallback(async () => {
@@ -224,23 +221,42 @@ export function LichessConnect() {
               <Loader2 className="h-4 w-4 animate-spin" />
               Authorize on Lichess to finish…
             </div>
-            <p className="text-sm text-[var(--muted-foreground)]">
-              A Lichess tab should have opened. Authorize there and it’ll close and
-              connect automatically.
-            </p>
-            <details className="text-xs text-[var(--muted-foreground)]">
-              <summary className="cursor-pointer select-none">
-                Having problems opening it? Copy this link into a new tab instead
-              </summary>
-              <div className="mt-2 flex items-center gap-2">
-                <code className="block flex-1 overflow-x-auto rounded-md border border-[var(--border)] bg-[var(--background)] p-2 font-mono text-[11px] break-all select-all">
-                  {startUrl}
-                </code>
-                <Button variant="outline" size="sm" onClick={copy}>
-                  <Copy className="h-3.5 w-3.5" /> {copied ? "Copied" : "Copy"}
-                </Button>
-              </div>
-            </details>
+            {tabOpened ? (
+              <>
+                <p className="text-sm text-[var(--muted-foreground)]">
+                  A Lichess tab opened — authorize there and it’ll close and connect
+                  automatically.
+                </p>
+                <details className="text-xs text-[var(--muted-foreground)]">
+                  <summary className="cursor-pointer select-none">
+                    Tab didn’t open or showed an error? Copy this link into a new tab
+                  </summary>
+                  <div className="mt-2 flex items-center gap-2">
+                    <code className="block flex-1 overflow-x-auto rounded-md border border-[var(--border)] bg-[var(--background)] p-2 font-mono text-[11px] break-all select-all">
+                      {startUrl}
+                    </code>
+                    <Button variant="outline" size="sm" onClick={copy}>
+                      <Copy className="h-3.5 w-3.5" /> {copied ? "Copied" : "Copy"}
+                    </Button>
+                  </div>
+                </details>
+              </>
+            ) : (
+              <>
+                <p className="text-sm text-[var(--muted-foreground)]">
+                  We couldn’t open the Lichess tab automatically. Copy this link and
+                  open it in a new browser tab:
+                </p>
+                <div className="flex items-center gap-2">
+                  <code className="block flex-1 overflow-x-auto rounded-md border border-[var(--border)] bg-[var(--background)] p-2 font-mono text-[11px] break-all select-all">
+                    {startUrl}
+                  </code>
+                  <Button variant="outline" size="sm" onClick={copy}>
+                    <Copy className="h-3.5 w-3.5" /> {copied ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+              </>
+            )}
           </>
         ) : (
           <>
