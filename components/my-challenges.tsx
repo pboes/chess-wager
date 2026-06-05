@@ -9,13 +9,54 @@ import { useStake } from "@/hooks/use-stake";
 import type { Challenge } from "@/lib/challenge/types";
 import { Copy, ExternalLink, Loader2, RefreshCw, Trophy } from "lucide-react";
 
-const statusBadge: Record<string, { label: string; variant: "success" | "muted" | "default" }> = {
-  created: { label: "Awaiting opponent", variant: "muted" },
-  accepted: { label: "Game on", variant: "default" },
-  settled: { label: "Settled", variant: "success" },
-  void: { label: "Refunded", variant: "muted" },
-  expired: { label: "Expired", variant: "muted" },
-};
+const STEPS = ["Accept", "Play", "Settle"] as const;
+
+/** created → Accept(0), accepted → Play(1), terminal → all done(3). */
+function activeStep(status: string): number {
+  if (status === "created") return 0;
+  if (status === "accepted") return 1;
+  return STEPS.length;
+}
+
+function Stepper({ active }: { active: number }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      {STEPS.map((label, i) => {
+        const done = i < active;
+        const current = i === active;
+        return (
+          <React.Fragment key={label}>
+            <span className="flex items-center gap-1">
+              <span
+                className={`flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold ${
+                  done
+                    ? "bg-[var(--accent)] text-white"
+                    : current
+                      ? "bg-[var(--primary)] text-white"
+                      : "bg-[var(--secondary)] text-[var(--muted-foreground)]"
+                }`}
+              >
+                {done ? "✓" : i + 1}
+              </span>
+              <span
+                className={`text-[10px] ${
+                  current
+                    ? "font-semibold text-[var(--foreground)]"
+                    : "text-[var(--muted-foreground)]"
+                }`}
+              >
+                {label}
+              </span>
+            </span>
+            {i < STEPS.length - 1 && (
+              <span className={`h-px w-4 ${i < active ? "bg-[var(--accent)]" : "bg-[var(--border)]"}`} />
+            )}
+          </React.Fragment>
+        );
+      })}
+    </div>
+  );
+}
 
 export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
   const { address } = useWallet();
@@ -25,16 +66,6 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
   const [refreshing, setRefreshing] = React.useState(false);
   const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-
-  const copyLink = React.useCallback(async (id: string, url: string) => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
-    } catch {
-      /* clipboard blocked — link is still openable via the button */
-    }
-  }, []);
 
   const me = address?.toLowerCase() ?? "";
 
@@ -53,13 +84,31 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
     void load();
   }, [load, refreshKey]);
 
-  // Manual refresh with a guaranteed-visible spin so the button feels alive.
+  // Light auto-refresh while anything is in progress — opponent may accept, and
+  // the server auto-settles finished games — so the stages advance on their own.
+  const hasPending = challenges.some((c) => c.status === "created" || c.status === "accepted");
+  React.useEffect(() => {
+    if (!hasPending) return;
+    const t = setInterval(() => void load(), 12000);
+    return () => clearInterval(t);
+  }, [hasPending, load]);
+
   const refresh = React.useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
     await Promise.all([load(), new Promise((r) => setTimeout(r, 450))]);
     setRefreshing(false);
   }, [load, refreshing]);
+
+  const copyLink = React.useCallback(async (id: string, url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+    } catch {
+      /* clipboard blocked — link is still openable via the button */
+    }
+  }, []);
 
   const accept = React.useCallback(
     async (c: Challenge) => {
@@ -111,6 +160,15 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
 
   if (!address) return null;
 
+  const active = challenges.filter((c) => c.status === "created" || c.status === "accepted");
+  const done = challenges.filter((c) => c.status !== "created" && c.status !== "accepted");
+
+  const matchup = (c: Challenge) => {
+    const mine = c.challenger.address === me;
+    const them = mine ? c.opponent : c.challenger;
+    return { mine, them };
+  };
+
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between">
@@ -133,18 +191,17 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
             No challenges yet. Create one above.
           </p>
         )}
-        {challenges.map((c) => {
-          const mine = c.challenger.address === me;
-          const them = mine ? c.opponent : c.challenger;
-          const sb = statusBadge[c.status] ?? statusBadge.created;
+
+        {/* Active challenges — guided through the stages. */}
+        {active.map((c) => {
+          const { mine, them } = matchup(c);
+          const busy = busyId === c.id;
           const myUrl =
             c.lichess && (c.lichess.whiteAddress === me ? c.lichess.urlWhite : c.lichess.urlBlack);
-          const incoming = c.status === "created" && !mine;
-          const won = c.status === "settled" && c.result?.winnerAddress?.toLowerCase() === me;
 
           return (
-            <div key={c.id} className="rounded-xl border border-[var(--border)] p-3">
-              <div className="flex items-center justify-between">
+            <div key={c.id} className="space-y-2.5 rounded-xl border border-[var(--border)] p-3">
+              <div className="flex items-center justify-between gap-2">
                 <div className="text-sm">
                   <span className="font-semibold">{c.timeControl.label}</span>
                   <span className="text-[var(--muted-foreground)]">
@@ -152,82 +209,109 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
                     {c.stakeCrc} gCRC {mine ? "vs" : "from"} {them.username}
                   </span>
                 </div>
-                <Badge variant={sb.variant}>{sb.label}</Badge>
               </div>
 
-              {c.status === "settled" && (
-                <p className="mt-1 text-xs">
-                  {won ? (
-                    <span className="font-semibold text-[var(--accent)]">
-                      You won the pot 🏆
-                    </span>
-                  ) : (
-                    <span className="text-[var(--muted-foreground)]">
-                      Won by {c.result?.winnerUsername ?? "—"} ({c.result?.status})
-                    </span>
-                  )}
-                </p>
+              <Stepper active={activeStep(c.status)} />
+
+              {/* Stage 1 — opponent accepts. */}
+              {c.status === "created" && !mine && (
+                <div className="space-y-2">
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    {them.username} challenged you. Accept to stake {c.stakeCrc} gCRC and start.
+                  </p>
+                  <Button size="sm" className="w-full" disabled={busy} onClick={() => accept(c)}>
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Accept · stake ${c.stakeCrc} gCRC`}
+                  </Button>
+                </div>
+              )}
+              {c.status === "created" && mine && (
+                <div className="space-y-2">
+                  <p className="text-xs text-[var(--muted-foreground)]">
+                    Waiting for {them.username} to accept and stake — they’ll see it in their
+                    challenges.
+                  </p>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => settle(c)}
+                  >
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reclaim stake if expired"}
+                  </Button>
+                </div>
               )}
 
-              <div className="mt-2 flex flex-wrap gap-2">
-                {incoming && (
-                  <Button size="sm" disabled={busyId === c.id} onClick={() => accept(c)}>
-                    {busyId === c.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      `Accept · stake ${c.stakeCrc}`
+              {/* Stage 2 → 3 — play elsewhere, come back to settle. */}
+              {c.status === "accepted" && (
+                <div className="space-y-2">
+                  <div className="space-y-2 rounded-lg bg-[var(--secondary)]/40 p-2.5">
+                    <p className="text-xs">
+                      <span className="font-semibold">Play</span> the game on Lichess (new tab),
+                      then come back here.
+                    </p>
+                    {myUrl && (
+                      <div className="flex flex-wrap gap-2">
+                        <a href={myUrl} target="_blank" rel="noopener noreferrer">
+                          <Button size="sm" variant="outline">
+                            <ExternalLink className="h-4 w-4" /> Open on Lichess
+                          </Button>
+                        </a>
+                        <Button size="sm" variant="outline" onClick={() => copyLink(c.id, myUrl)}>
+                          <Copy className="h-4 w-4" /> {copiedId === c.id ? "Copied" : "Copy link"}
+                        </Button>
+                      </div>
                     )}
+                  </div>
+                  <Button size="sm" className="w-full" disabled={busy} onClick={() => settle(c)}>
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "I’ve played → Settle"}
                   </Button>
-                )}
-                {c.status === "accepted" && myUrl && (
-                  <>
-                    <a href={myUrl} target="_blank" rel="noopener noreferrer">
-                      <Button size="sm" variant="outline">
-                        <ExternalLink className="h-4 w-4" /> Open on Lichess
-                      </Button>
-                    </a>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => copyLink(c.id, myUrl)}
-                    >
-                      <Copy className="h-4 w-4" />
-                      {copiedId === c.id ? "Copied" : "Copy link"}
-                    </Button>
-                  </>
-                )}
-                {c.status === "accepted" && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busyId === c.id}
-                    onClick={() => settle(c)}
-                  >
-                    {busyId === c.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Game played → settle"
-                    )}
-                  </Button>
-                )}
-                {c.status === "created" && mine && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={busyId === c.id}
-                    onClick={() => settle(c)}
-                  >
-                    {busyId === c.id ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      "Reclaim if expired"
-                    )}
-                  </Button>
-                )}
-              </div>
+                  <p className="text-[10px] text-[var(--muted-foreground)]">
+                    Finished games settle automatically too — this just does it now.
+                  </p>
+                </div>
+              )}
             </div>
           );
         })}
+
+        {/* History — compact one-liners. */}
+        {done.length > 0 && (
+          <div className="space-y-1.5 pt-1">
+            {active.length > 0 && (
+              <p className="text-[10px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
+                History
+              </p>
+            )}
+            {done.map((c) => {
+              const { mine, them } = matchup(c);
+              const won = c.status === "settled" && c.result?.winnerAddress?.toLowerCase() === me;
+              return (
+                <div
+                  key={c.id}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-[var(--border)] px-3 py-2 text-sm"
+                >
+                  <span className="truncate">
+                    <span className="font-medium">{c.timeControl.label}</span>
+                    <span className="text-[var(--muted-foreground)]">
+                      {" · "}
+                      {c.stakeCrc} gCRC {mine ? "vs" : "from"} {them.username}
+                    </span>
+                  </span>
+                  {c.status === "settled" ? (
+                    won ? (
+                      <Badge variant="success">Won 🏆</Badge>
+                    ) : (
+                      <Badge variant="muted">{c.result?.winnerUsername ?? "Lost"} won</Badge>
+                    )
+                  ) : (
+                    <Badge variant="muted">{c.status === "void" ? "Refunded" : "Expired"}</Badge>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {error && <p className="text-xs text-[var(--destructive)]">{error}</p>}
       </CardContent>
     </Card>
