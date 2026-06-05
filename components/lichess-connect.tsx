@@ -100,6 +100,14 @@ export function LichessConnect() {
       if (ev.origin !== window.location.origin) return;
       if (ev.data?.type !== "lichess-oauth") return;
       window.removeEventListener("message", onMessage);
+      // Close the tab from here (the opener may close a window it opened, even
+      // when the tab can't close itself after a cross-origin redirect). Focus
+      // returns to the app, ready for the signature step.
+      try {
+        popup.close();
+      } catch {
+        /* ignore */
+      }
       const { code, state: returned, error: oauthErr } = ev.data;
       if (oauthErr || !code) {
         setError("Lichess authorization was cancelled.");
