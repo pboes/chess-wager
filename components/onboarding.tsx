@@ -118,10 +118,8 @@ export function Onboarding({
           ) : (
             <>
               <p className="text-sm text-[var(--muted-foreground)]">
-                This holds your stake and your winnings.{" "}
-                <strong className="text-[var(--foreground)]">All you need is a passkey</strong>{" "}
-                — created by your phone or password manager (Face ID, fingerprint, or your
-                password app). No seed phrase to write down.
+                This holds your stake and your winnings — quick to set up, with nothing to
+                write down.
               </p>
               <Button className="w-full" disabled={creating} onClick={create}>
                 {creating ? (
