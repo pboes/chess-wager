@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useStake } from "@/hooks/use-stake";
 import type { Challenge } from "@/lib/challenge/types";
-import { ExternalLink, Loader2, RefreshCw, Trophy } from "lucide-react";
+import { Copy, ExternalLink, Loader2, RefreshCw, Trophy } from "lucide-react";
 
 const statusBadge: Record<string, { label: string; variant: "success" | "muted" | "default" }> = {
   created: { label: "Awaiting opponent", variant: "muted" },
@@ -23,7 +23,18 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
   const [challenges, setChallenges] = React.useState<Challenge[]>([]);
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [refreshing, setRefreshing] = React.useState(false);
+  const [copiedId, setCopiedId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
+
+  const copyLink = React.useCallback(async (id: string, url: string) => {
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+    } catch {
+      /* clipboard blocked — link is still openable via the button */
+    }
+  }, []);
 
   const me = address?.toLowerCase() ?? "";
 
@@ -169,11 +180,21 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
                   </Button>
                 )}
                 {c.status === "accepted" && myUrl && (
-                  <a href={myUrl} target="_blank" rel="noopener noreferrer">
-                    <Button size="sm" variant="outline">
-                      <ExternalLink className="h-4 w-4" /> Open on Lichess
+                  <>
+                    <a href={myUrl} target="_blank" rel="noopener noreferrer">
+                      <Button size="sm" variant="outline">
+                        <ExternalLink className="h-4 w-4" /> Open on Lichess
+                      </Button>
+                    </a>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copyLink(c.id, myUrl)}
+                    >
+                      <Copy className="h-4 w-4" />
+                      {copiedId === c.id ? "Copied" : "Copy link"}
                     </Button>
-                  </a>
+                  </>
                 )}
                 {c.status === "accepted" && (
                   <Button
