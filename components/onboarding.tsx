@@ -5,6 +5,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { LichessConnect } from "@/components/lichess-connect";
+import { Modal } from "@/components/ui/modal";
 import { CheckCircle2, Loader2, Wallet } from "lucide-react";
 
 type StepState = "todo" | "active" | "done";
@@ -39,6 +40,7 @@ export function Onboarding({
   const { createAccount } = useWallet();
   const [creating, setCreating] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [showInfo, setShowInfo] = React.useState(false);
 
   const hasCircles = Boolean(address);
 
@@ -89,6 +91,12 @@ export function Onboarding({
           <div className="flex items-center gap-2">
             <StepBadge n={1} state={hasCircles ? "done" : "active"} />
             <h3 className="text-sm font-semibold">Your Circles account</h3>
+            <button
+              onClick={() => setShowInfo(true)}
+              className="ml-auto text-xs font-medium text-[var(--primary)] underline"
+            >
+              What’s Circles?
+            </button>
           </div>
           {hasCircles ? (
             <p className="text-sm text-[var(--muted-foreground)]">
@@ -167,6 +175,34 @@ export function Onboarding({
           </>
         )}
       </div>
+
+      <Modal open={showInfo} onClose={() => setShowInfo(false)} title="What’s Circles?">
+        <p>
+          Circles is money you create yourself.{" "}
+          <strong className="text-[var(--foreground)]">
+            Everyone mints 1 personal CRC every hour
+          </strong>
+          , automatically — and those CRC are yours.
+        </p>
+        <p>
+          People also pool into{" "}
+          <strong className="text-[var(--foreground)]">community currencies</strong>{" "}
+          (group CRC). You can turn your personal CRC into one, or buy it.
+        </p>
+        <p>
+          In Chess Wager you’ll be able to stake{" "}
+          <strong className="text-[var(--foreground)]">either</strong> — your own personal
+          CRC, or a community currency.
+        </p>
+        <a
+          href="https://aboutcircles.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex font-medium text-[var(--primary)] underline"
+        >
+          Learn more at aboutcircles.com →
+        </a>
+      </Modal>
     </div>
   );
 }
