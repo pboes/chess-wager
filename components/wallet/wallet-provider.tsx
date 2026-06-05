@@ -14,6 +14,10 @@ interface WalletContextValue {
   sendTransactions: (txs: TxRequest[]) => Promise<string[]>;
   /** Ask the host to sign a message with the user's Safe. */
   signMessage: (message: string) => Promise<{ signature: string; verified: boolean }>;
+  /** Ask the host to create a Circles account (passkey + invite). Resolves with
+   *  the new registered address; `onWalletChange` also fires. Must be called from
+   *  a user gesture. Throws if cancelled or unsupported. */
+  createAccount: () => Promise<{ address: string }>;
 }
 
 const WalletContext = React.createContext<WalletContextValue | null>(null);
@@ -65,6 +69,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
     return sdk.signMessage(message);
   }, []);
 
+  const createAccount = React.useCallback(async () => {
+    const sdk = sdkRef.current;
+    if (!sdk) throw new Error("Open this app inside the Circles host to create an account.");
+    if (typeof sdk.requestCreateAccount !== "function") {
+      throw new Error("This Circles host doesn't support in-app account creation yet.");
+    }
+    return sdk.requestCreateAccount();
+  }, []);
+
   const value = React.useMemo<WalletContextValue>(
     () => ({
       address,
@@ -72,8 +85,9 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       isMiniappHost,
       sendTransactions,
       signMessage,
+      createAccount,
     }),
-    [address, isMiniappHost, sendTransactions, signMessage]
+    [address, isMiniappHost, sendTransactions, signMessage, createAccount]
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

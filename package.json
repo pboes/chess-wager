@@ -10,7 +10,7 @@
     "lint": "next lint"
   },
   "dependencies": {
-    "@aboutcircles/miniapp-sdk": "^0.1.43",
+    "@aboutcircles/miniapp-sdk": "^0.1.44",
     "@aboutcircles/sdk": "^0.1.43",
     "@aboutcircles/sdk-core": "^0.1.43",
     "@aboutcircles/sdk-permissionless-groups": "^0.1.43",

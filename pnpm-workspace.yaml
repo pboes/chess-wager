@@ -1,5 +1,7 @@
 allowBuilds:
   sharp: set this to true or false
+minimumReleaseAgeExclude:
+  - '@aboutcircles/miniapp-sdk@0.1.44'
 onlyBuiltDependencies:
   - sharp
 verifyDepsBeforeRun: false

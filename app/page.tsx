@@ -1,16 +1,20 @@
 "use client";
 
 import * as React from "react";
+import { Loader2 } from "lucide-react";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { LichessConnect } from "@/components/lichess-connect";
 import { CreateChallenge } from "@/components/create-challenge";
 import { MyChallenges } from "@/components/my-challenges";
+import { Onboarding } from "@/components/onboarding";
 
 export default function Home() {
-  const { address, isConnected } = useWallet();
+  const { address, isMiniappHost } = useWallet();
   const [lichessConnected, setLichessConnected] = React.useState<boolean | null>(null);
   const [refreshKey, setRefreshKey] = React.useState(0);
 
+  // Source-of-truth check (independent of which view is mounted) so a fully
+  // onboarded returning user lands straight on the app.
   React.useEffect(() => {
     if (!address) {
       setLichessConnected(null);
@@ -31,30 +35,33 @@ export default function Home() {
     };
   }, [address, refreshKey]);
 
+  const ready = Boolean(address) && lichessConnected === true;
+  const checking = Boolean(address) && lichessConnected === null;
+
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
-      {!isConnected && (
-        <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-center text-sm text-[var(--muted-foreground)]">
-          Open this app inside Circles to connect your wallet and start dueling.
-        </div>
-      )}
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <div className="space-y-4">
-          <LichessConnect onConnectionChange={setLichessConnected} />
-          {isConnected && lichessConnected && (
+      {ready ? (
+        <div className="grid gap-4 md:grid-cols-2">
+          <div className="space-y-4">
+            <LichessConnect onConnectionChange={setLichessConnected} />
             <CreateChallenge onCreated={() => setRefreshKey((k) => k + 1)} />
-          )}
-          {isConnected && lichessConnected === false && (
-            <p className="px-1 text-xs text-[var(--muted-foreground)]">
-              Connect your Lichess account above to create a challenge.
-            </p>
-          )}
+          </div>
+          <div className="space-y-4">
+            <MyChallenges refreshKey={refreshKey} />
+          </div>
         </div>
-        <div className="space-y-4">
-          <MyChallenges refreshKey={refreshKey} />
+      ) : checking ? (
+        <div className="flex justify-center py-16 text-[var(--muted-foreground)]">
+          <Loader2 className="h-6 w-6 animate-spin" />
         </div>
-      </div>
+      ) : (
+        <Onboarding
+          address={address}
+          isMiniappHost={isMiniappHost}
+          lichessConnected={lichessConnected}
+          onLichessChange={setLichessConnected}
+        />
+      )}
     </div>
   );
 }
