@@ -14,11 +14,15 @@ import type { Address } from "viem";
 
 /**
  * The dedicated escrow org Safe ("Chess Wager Escrow"). Holds live stakes and
- * pays winners / refunds. Set via env so it stays separate from the puzzle org.
- * Until provisioned, on-chain settle/payout will assert this is configured.
+ * pays winners / refunds, signed by ESCROW_SIGNER_ADDRESS.
+ *
+ * Hardcoded (not env) on purpose: it's read on the **client** too (to build the
+ * stake transfer), and a non-NEXT_PUBLIC env var is undefined there — which
+ * silently fell back to the zero address and reverted the stake. The address is
+ * permanent, so a constant is correct and safe.
  */
-export const ESCROW_ADDRESS = (process.env.ESCROW_ORG_ADDRESS ??
-  "0x0000000000000000000000000000000000000000") as Address;
+export const ESCROW_ADDRESS =
+  "0x3B9637DA68DeD61147d4C083C8D17fe3319Ef7A4" as Address;
 
 /** The EOA that signs for the escrow Safe (a Safe owner). Only signs. */
 export const ESCROW_SIGNER_ADDRESS =
