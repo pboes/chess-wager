@@ -5,7 +5,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useBalances, attoToCrc } from "@/hooks/use-balances";
 import { RefreshCw } from "lucide-react";
 
-const fmt = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+// Floor, never round up — match the Circles app and never over-state a balance.
+const fmt = (n: number) => Math.floor(n).toLocaleString();
 
 function Stat({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
