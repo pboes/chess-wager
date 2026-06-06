@@ -44,7 +44,9 @@ export interface VerifyStakeResult {
 export async function verifyStakePayment(
   txHash: string,
   minAtto: bigint,
-  expectedFrom?: string
+  expectedFrom: string | undefined,
+  /** Hub token id expected into the escrow (group token, or a personal token). */
+  tokenId: bigint
 ): Promise<VerifyStakeResult> {
   // A little slack for demurrage→inflationary truncation on the ERC20 path.
   const floor = (minAtto * 95n) / 100n;
@@ -69,7 +71,7 @@ export async function verifyStakePayment(
         if (
           eventName === "TransferSingle" &&
           getAddress(args.to as string) === escrow &&
-          (args.id as bigint) === GROUP_TOKEN_ID &&
+          (args.id as bigint) === tokenId &&
           (args.value as bigint) >= floor
         ) {
           const from = getAddress(args.from as string);
@@ -81,23 +83,27 @@ export async function verifyStakePayment(
       }
     }
 
-    try {
-      const { args, eventName } = decodeEventLog({
-        abi: [erc20TransferAbi],
-        data: log.data,
-        topics: log.topics,
-      });
-      if (
-        eventName === "Transfer" &&
-        getAddress(args.to as string) === escrow &&
-        (args.value as bigint) >= floor
-      ) {
-        const from = getAddress(args.from as string);
-        if (expectedFrom && from !== getAddress(expectedFrom)) continue;
-        return { ok: true, from, receivedAtto: args.value as bigint, mode: "erc20" };
+    // The ERC20 (wrapper) delivery path only applies to gCRC; personal stakes
+    // arrive as a pure ERC1155 transfer.
+    if (tokenId === GROUP_TOKEN_ID) {
+      try {
+        const { args, eventName } = decodeEventLog({
+          abi: [erc20TransferAbi],
+          data: log.data,
+          topics: log.topics,
+        });
+        if (
+          eventName === "Transfer" &&
+          getAddress(args.to as string) === escrow &&
+          (args.value as bigint) >= floor
+        ) {
+          const from = getAddress(args.from as string);
+          if (expectedFrom && from !== getAddress(expectedFrom)) continue;
+          return { ok: true, from, receivedAtto: args.value as bigint, mode: "erc20" };
+        }
+      } catch {
+        /* not an ERC20 Transfer */
       }
-    } catch {
-      /* not an ERC20 Transfer */
     }
   }
 

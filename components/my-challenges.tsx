@@ -133,7 +133,7 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
       setError(null);
       setBusyId(c.id);
       try {
-        const hashes = await stake(c.stakeCrc);
+        const hashes = await stake(c.stakeCrc, c.mode ?? "group");
         let lastErr = "Couldn't accept.";
         for (const txHash of hashes) {
           const res = await fetch(`/api/challenge/${c.id}/accept`, {

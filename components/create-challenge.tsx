@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useStake } from "@/hooks/use-stake";
-import { TIME_CONTROLS } from "@/lib/challenge/types";
+import { useBalances, attoToCrc } from "@/hooks/use-balances";
+import { TIME_CONTROLS, type ChallengeMode } from "@/lib/challenge/types";
 import { MIN_STAKE_CRC } from "@/lib/circles-config";
 import { Loader2, Swords } from "lucide-react";
 
@@ -18,9 +19,11 @@ type Phase = "idle" | "staking" | "creating" | "error";
 
 export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
   const { address } = useWallet();
-  const { stake, balanceCrc } = useStake();
+  const { stake } = useStake();
+  const { balances } = useBalances();
   const [users, setUsers] = React.useState<ConnectedUser[]>([]);
   const [opponent, setOpponent] = React.useState<string>("");
+  const [mode, setMode] = React.useState<ChallengeMode>("personal");
   const [tcKey, setTcKey] = React.useState(TIME_CONTROLS[1].key);
   const [stakeCrc, setStakeCrc] = React.useState<number>(MIN_STAKE_CRC);
   const [phase, setPhase] = React.useState<Phase>("idle");
@@ -43,14 +46,22 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
     };
   }, [address]);
 
+  const heldPersonal = attoToCrc(balances?.heldPersonalAtto);
+  const heldGroup = attoToCrc(balances?.heldGroupAtto);
+  const mintable = attoToCrc(balances?.mintableAtto);
+  const currency = mode === "personal" ? "personal CRC" : "gCRC";
+  const held = mode === "personal" ? heldPersonal : heldGroup;
+  const enough = held >= stakeCrc;
+  const canClaimEnough = mode === "personal" && held + mintable >= stakeCrc;
+
   const submit = React.useCallback(async () => {
     if (!address || !opponent) return;
     setError(null);
     try {
       setPhase("staking");
-      const hashes = await stake(stakeCrc);
+      const hashes = await stake(stakeCrc, mode);
       setPhase("creating");
-      let lastErr = "Couldn't create the challenge.";
+      let lastErr = "Couldn’t create the challenge.";
       for (const txHash of hashes) {
         const res = await fetch("/api/challenge/create", {
           method: "POST",
@@ -60,6 +71,7 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
             opponentAddress: opponent,
             timeControlKey: tcKey,
             stakeCrc,
+            mode,
             txHash,
           }),
         });
@@ -77,7 +89,7 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
       setError(err instanceof Error ? err.message : String(err));
       setPhase("error");
     }
-  }, [address, opponent, tcKey, stakeCrc, stake, onCreated]);
+  }, [address, opponent, tcKey, stakeCrc, mode, stake, onCreated]);
 
   const busy = phase === "staking" || phase === "creating";
 
@@ -90,6 +102,28 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Mode */}
+        <div className="grid grid-cols-2 gap-2">
+          {(["personal", "group"] as ChallengeMode[]).map((m) => (
+            <button
+              key={m}
+              onClick={() => setMode(m)}
+              className={`rounded-lg border px-3 py-2 text-left transition ${
+                mode === m
+                  ? "border-[var(--primary)] bg-[var(--primary)]/10"
+                  : "border-[var(--border)] hover:border-[var(--primary)]"
+              }`}
+            >
+              <div className="text-sm font-semibold">
+                {m === "personal" ? "Personal" : "Group"}
+              </div>
+              <div className="text-[10px] text-[var(--muted-foreground)]">
+                {m === "personal" ? "play money · free" : "real money"}
+              </div>
+            </button>
+          ))}
+        </div>
+
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-[var(--muted-foreground)]">Opponent</label>
           {users.length === 0 ? (
@@ -133,7 +167,7 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
 
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-[var(--muted-foreground)]">
-            Stake (gCRC){balanceCrc != null && ` · you hold ${balanceCrc}`}
+            Stake ({currency}) · you hold {Math.floor(held).toLocaleString()}
           </label>
           <input
             type="number"
@@ -145,7 +179,7 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
           />
         </div>
 
-        <Button className="w-full" disabled={!opponent || busy} onClick={submit}>
+        <Button className="w-full" disabled={!opponent || busy || !enough} onClick={submit}>
           {busy ? (
             <>
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -154,10 +188,25 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
           ) : (
             <>
               <Swords className="h-4 w-4" />
-              Stake {stakeCrc} gCRC &amp; challenge
+              Stake {stakeCrc} {currency} &amp; challenge
             </>
           )}
         </Button>
+
+        {!enough && mode === "personal" && (
+          <p className="text-xs text-[var(--muted-foreground)]">
+            {canClaimEnough
+              ? "Claim your personal CRC in the balance above first, then stake."
+              : `Not enough personal CRC — you have ${Math.floor(held)}.`}
+          </p>
+        )}
+        {!enough && mode === "group" && (
+          <p className="text-xs text-[var(--muted-foreground)]">
+            You don’t have enough gCRC. gCRC is the “real money” currency — get it in the
+            Circles app.
+          </p>
+        )}
+
         <p className="text-xs text-[var(--muted-foreground)]">
           Your stake goes into escrow. The challenge opens once your opponent stakes the
           same; you both play on Lichess and the winner takes the pot.

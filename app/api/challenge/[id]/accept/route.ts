@@ -5,6 +5,7 @@ import { verifyStakePayment } from "@/lib/server/verify-stake";
 import { toDemurrageNow, toStatic } from "@/lib/challenge/accounting";
 import { PLAY_WINDOW_MS } from "@/lib/challenge/state";
 import { createOpenChallenge } from "@/lib/lichess-game";
+import { stakeTokenId } from "@/lib/challenge/types";
 
 export const dynamic = "force-dynamic";
 
@@ -47,9 +48,16 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: "This stake transaction was already used" }, { status: 409 });
   }
 
-  // Opponent must match the agreed stake (its current demurraged value).
+  // Opponent must match the agreed stake (its current demurraged value), staked
+  // in the right token (their own personal CRC, or gCRC).
+  const mode = c.mode ?? "group";
   const needAtto = toDemurrageNow(BigInt(c.stakeStaticAtto));
-  const verified = await verifyStakePayment(b.txHash, needAtto, opponent);
+  const verified = await verifyStakePayment(
+    b.txHash,
+    needAtto,
+    opponent,
+    stakeTokenId(mode, opponent)
+  );
   if (!verified.ok || !verified.receivedAtto) {
     return NextResponse.json({ error: verified.reason ?? "Stake not verified" }, { status: 402 });
   }

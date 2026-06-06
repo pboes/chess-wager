@@ -18,6 +18,17 @@ export interface TokenRef {
 
 export const GROUP_TOKEN: TokenRef = { kind: "group", address: SCORE_GROUP_ADDRESS };
 
+export type ChallengeMode = "personal" | "group";
+
+/**
+ * Hub token id a player stakes for a challenge:
+ *  - group mode  → the score group's token (fungible, "real money")
+ *  - personal    → the player's *own* personal token (a trophy when won)
+ */
+export function stakeTokenId(mode: ChallengeMode, stakerAddress: string): bigint {
+  return mode === "group" ? BigInt(SCORE_GROUP_ADDRESS) : BigInt(stakerAddress);
+}
+
 export interface TimeControl {
   key: string;
   label: string;
@@ -84,6 +95,8 @@ export interface Transfer {
 export interface Challenge {
   id: string;
   status: ChallengeStatus;
+  /** Stake currency. Absent on legacy challenges → treat as "group". */
+  mode?: ChallengeMode;
   token: TokenRef;
   timeControl: TimeControl;
   /** Agreed stake per side, static atto-CRC (conserved across time). */
@@ -96,7 +109,8 @@ export interface Challenge {
   stakes: { challenger?: StakeRecord; opponent?: StakeRecord };
   lichess?: LichessGameRef;
   result?: ChallengeResult;
-  payout?: Transfer;
+  /** Winner payout(s). Group = one; personal = one per token (each CRC). */
+  payouts?: Transfer[];
   refunds?: Transfer[];
   createdAt: number;
   acceptedAt?: number;

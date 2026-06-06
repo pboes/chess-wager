@@ -4,7 +4,13 @@ import { getStore } from "@/lib/server/store";
 import { verifyStakePayment } from "@/lib/server/verify-stake";
 import { crcToAtto, toStatic } from "@/lib/challenge/accounting";
 import { ACCEPT_WINDOW_MS } from "@/lib/challenge/state";
-import { GROUP_TOKEN, timeControlByKey, type Challenge } from "@/lib/challenge/types";
+import {
+  GROUP_TOKEN,
+  stakeTokenId,
+  timeControlByKey,
+  type Challenge,
+  type ChallengeMode,
+} from "@/lib/challenge/types";
 import { MIN_STAKE_CRC } from "@/lib/circles-config";
 import { randomString } from "@/lib/lichess";
 
@@ -22,6 +28,7 @@ export async function POST(req: Request) {
     timeControlKey?: string;
     stakeCrc?: number;
     txHash?: string;
+    mode?: ChallengeMode;
   };
   try {
     b = await req.json();
@@ -30,6 +37,7 @@ export async function POST(req: Request) {
   }
 
   const { challengerAddress, opponentAddress, timeControlKey, stakeCrc, txHash } = b;
+  const mode: ChallengeMode = b.mode === "personal" ? "personal" : "group";
   if (!challengerAddress || !opponentAddress || !timeControlKey || !stakeCrc || !txHash) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
@@ -67,7 +75,12 @@ export async function POST(req: Request) {
   }
 
   const stakeAtto = crcToAtto(stakeCrc);
-  const verified = await verifyStakePayment(txHash, stakeAtto, challenger);
+  const verified = await verifyStakePayment(
+    txHash,
+    stakeAtto,
+    challenger,
+    stakeTokenId(mode, challenger)
+  );
   if (!verified.ok || !verified.receivedAtto) {
     return NextResponse.json({ error: verified.reason ?? "Stake not verified" }, { status: 402 });
   }
@@ -77,7 +90,8 @@ export async function POST(req: Request) {
   const challenge: Challenge = {
     id: randomString(12),
     status: "created",
-    token: GROUP_TOKEN,
+    mode,
+    token: mode === "group" ? GROUP_TOKEN : { kind: "personal", address: challenger },
     timeControl: tc,
     stakeStaticAtto: toStatic(stakeAtto).toString(),
     stakeCrc,
