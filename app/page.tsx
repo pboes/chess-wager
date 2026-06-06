@@ -7,6 +7,7 @@ import { LichessConnect } from "@/components/lichess-connect";
 import { CreateChallenge } from "@/components/create-challenge";
 import { MyChallenges } from "@/components/my-challenges";
 import { Onboarding } from "@/components/onboarding";
+import { WalletBalances } from "@/components/wallet-balances";
 
 export default function Home() {
   const { address, isMiniappHost } = useWallet();
@@ -41,15 +42,18 @@ export default function Home() {
   return (
     <div className="mx-auto w-full max-w-5xl space-y-4">
       {ready ? (
-        <div className="grid gap-4 md:grid-cols-2">
-          <div className="space-y-4">
-            <LichessConnect onConnectionChange={setLichessConnected} />
-            <CreateChallenge onCreated={() => setRefreshKey((k) => k + 1)} />
+        <>
+          <WalletBalances />
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-4">
+              <LichessConnect onConnectionChange={setLichessConnected} />
+              <CreateChallenge onCreated={() => setRefreshKey((k) => k + 1)} />
+            </div>
+            <div className="space-y-4">
+              <MyChallenges refreshKey={refreshKey} />
+            </div>
           </div>
-          <div className="space-y-4">
-            <MyChallenges refreshKey={refreshKey} />
-          </div>
-        </div>
+        </>
       ) : checking ? (
         <div className="flex justify-center py-16 text-[var(--muted-foreground)]">
           <Loader2 className="h-6 w-6 animate-spin" />
