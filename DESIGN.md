@@ -29,6 +29,12 @@ and in personal mode the prize is literally the loser's personal CRC (a trophy).
 - No escrow-trust bootstrap, no migration — simpler than the gCRC path.
 - **Confirm on-chain:** a direct `safeTransferFrom` of a personal token to a
   non-trusting recipient doesn't revert in a Hub hook. (gCRC analogue works.)
+- **SDK caveat (important):** `@aboutcircles/sdk-permissionless-groups` only
+  handles **gCRC** (balance/transferGroupCrc/migration). For personal CRC use
+  **direct on-chain interaction** (viem: `Hub.balanceOf` / `safeTransferFrom` /
+  `personalMint` / wrapper calls — which is already how our final stake transfer
+  is built) or the dedicated **transfers SDK**. Don't route personal CRC through
+  the groups SDK.
 
 ## Amounts, units, demurrage — DECISION: keep demurraged quoting
 
@@ -42,9 +48,8 @@ and in personal mode the prize is literally the loser's personal CRC (a trophy).
   (spike: worst residual −1 wei). For personal, track A-CRC static and B-CRC
   static separately and pay each out as a direct transfer.
 - **Fairness via the accept window.** A and B stake at different times, so the
-  same demurraged nominal differs slightly in conserved value. A short
-  **~2–3 day accept window** makes the drift negligible. (Extend
-  `ACCEPT_WINDOW_MS` from 24h → ~3 days.)
+  same demurraged nominal differs slightly in conserved value. The existing
+  **24h accept window** keeps the drift negligible — keep `ACCEPT_WINDOW_MS` at 24h.
 
 ### How gCRC accounting works today (reference)
 Player picks a whole number `n` → treated as `n` demurraged CRC today
@@ -66,16 +71,22 @@ pathfinder-reachable balance for now.
 ## Minting — DECISION: separate "Claim" that mints **and wraps**
 
 - A distinct **Claim** action mints accrued personal CRC **and immediately wraps
-  it to the inflationary (static) form**, so the claimed amount doesn't demurrage
-  away. (`personalMint` on the Hub → wrap to inflationary ERC20.)
+  it to an ERC20** so the claimed amount stays constant (doesn't demurrage away).
+  Use the **inflationary (static)** wrapper since that's the one that keeps a
+  constant nominal balance. (`personalMint` on the Hub → wrap.)
 
-## Getting gCRC — DECISION: none in-app
+## Getting gCRC — DECISION: none in-app, send to app.gnosis.io
 
 - **No way to obtain gCRC inside the mini-app.** Personal mode is fully
   self-contained.
-- gCRC mode requires **pre-held gCRC**. If short, show a **CTA that opens the
-  full Circles app** to complete the profile and buy gCRC. *(Confirm exact URL —
-  candidates: app.metri.xyz / circles.gnosis.io.)*
+- gCRC mode requires **pre-held gCRC**. If short, open a **gCRC explainer modal**
+  → CTA to **app.gnosis.io**.
+- **gCRC explainer modal copy** (and a "Learn more" out): gCRC is the "real money"
+  currency, priced ~**€0.01 / gCRC**; you create or buy it in the Circles app.
+  **Framing matters:** present this as *"finish your onboarding"*, NOT "set up /
+  register a new account" — the user **already has an account** (their passkey),
+  so they must click **Log in** (use existing passkey) at app.gnosis.io, then top
+  up / buy gCRC. Wrong-button risk (Register vs Log in) is the main pitfall.
 - **Drop the current auto-migration** (personal/legacy → group) from the gCRC
   stake path — it conflicts with "gCRC = real money acquired elsewhere."
 
@@ -93,9 +104,17 @@ pathfinder-reachable balance for now.
 - New: balances hook/endpoint (mintable + held personal + held gCRC) and the
   Claim (mint + wrap) action.
 
-## Open / to confirm
+## Decided
 
-1. Drop auto-migration for gCRC stakes (recommend yes).
-2. Exact "go to the Circles app" URL for buying gCRC.
-3. Mint+wrap exact SDK calls; confirm direct personal transfer doesn't revert.
-4. Accept window → ~3 days.
+- Accept window: **24h** (unchanged).
+- gCRC balances: **current holdings only**, no pathfinder.
+- gCRC acquisition: **out of app → app.gnosis.io** (log in with passkey = finish
+  onboarding); auto-migration **dropped**.
+- Minting: separate **Claim** = mint + wrap to **inflationary** ERC20.
+- Personal sends/reads: **direct on-chain / transfers SDK**, not the groups SDK.
+
+## Still to verify during build
+
+1. Direct `safeTransferFrom` of a personal token to a non-trusting recipient
+   doesn't revert.
+2. Exact calls for `personalMint` + wrap, and reading mintable/held personal CRC.
