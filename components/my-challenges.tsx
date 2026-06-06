@@ -11,6 +11,9 @@ import { Clock, Copy, ExternalLink, Loader2, RefreshCw, Trophy } from "lucide-re
 
 const STEPS = ["Accept", "Play", "Settle"] as const;
 
+const currencyLabel = (c: Challenge) =>
+  (c.mode ?? "group") === "personal" ? "personal CRC" : "gCRC";
+
 function formatRemaining(ms: number): string {
   if (ms <= 0) return "expired";
   const totalMin = Math.floor(ms / 60000);
@@ -224,7 +227,7 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
                   <span className="font-semibold">{c.timeControl.label}</span>
                   <span className="text-[var(--muted-foreground)]">
                     {" · "}
-                    {c.stakeCrc} gCRC {mine ? "vs" : "from"} {them.username}
+                    {c.stakeCrc} {currencyLabel(c)} {mine ? "vs" : "from"} {them.username}
                   </span>
                 </div>
               </div>
@@ -244,10 +247,10 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
               {c.status === "created" && !mine && (
                 <div className="space-y-2">
                   <p className="text-xs text-[var(--muted-foreground)]">
-                    {them.username} challenged you. Accept to stake {c.stakeCrc} gCRC and start.
+                    {them.username} challenged you. Accept to stake {c.stakeCrc} {currencyLabel(c)} and start.
                   </p>
                   <Button size="sm" className="w-full" disabled={busy} onClick={() => accept(c)}>
-                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Accept · stake ${c.stakeCrc} gCRC`}
+                    {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : `Accept · stake ${c.stakeCrc} ${currencyLabel(c)}`}
                   </Button>
                 </div>
               )}
@@ -321,7 +324,7 @@ export function MyChallenges({ refreshKey }: { refreshKey?: number }) {
                     <span className="font-medium">{c.timeControl.label}</span>
                     <span className="text-[var(--muted-foreground)]">
                       {" · "}
-                      {c.stakeCrc} gCRC {mine ? "vs" : "from"} {them.username}
+                      {c.stakeCrc} {currencyLabel(c)} {mine ? "vs" : "from"} {them.username}
                     </span>
                   </span>
                   {c.status === "settled" ? (

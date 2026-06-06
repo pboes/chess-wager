@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useStake } from "@/hooks/use-stake";
 import { useBalances, attoToCrc } from "@/hooks/use-balances";
+import { Modal } from "@/components/ui/modal";
 import { TIME_CONTROLS, type ChallengeMode } from "@/lib/challenge/types";
 import { MIN_STAKE_CRC } from "@/lib/circles-config";
-import { Loader2, Swords } from "lucide-react";
+import { ExternalLink, Loader2, Swords } from "lucide-react";
 
 interface ConnectedUser {
   address: string;
@@ -28,6 +29,7 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
   const [stakeCrc, setStakeCrc] = React.useState<number>(MIN_STAKE_CRC);
   const [phase, setPhase] = React.useState<Phase>("idle");
   const [error, setError] = React.useState<string | null>(null);
+  const [showGcrcInfo, setShowGcrcInfo] = React.useState(false);
 
   React.useEffect(() => {
     if (!address) return;
@@ -201,10 +203,12 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
           </p>
         )}
         {!enough && mode === "group" && (
-          <p className="text-xs text-[var(--muted-foreground)]">
-            You don’t have enough gCRC. gCRC is the “real money” currency — get it in the
-            Circles app.
-          </p>
+          <button
+            onClick={() => setShowGcrcInfo(true)}
+            className="text-left text-xs font-medium text-[var(--primary)] underline"
+          >
+            You don’t have enough gCRC — how to get it →
+          </button>
         )}
 
         <p className="text-xs text-[var(--muted-foreground)]">
@@ -212,6 +216,28 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
           same; you both play on Lichess and the winner takes the pot.
         </p>
         {error && <p className="text-xs text-[var(--destructive)]">{error}</p>}
+
+        <Modal open={showGcrcInfo} onClose={() => setShowGcrcInfo(false)} title="Getting gCRC">
+          <p>
+            <strong className="text-[var(--foreground)]">Group CRC (gCRC)</strong> is the
+            “real money” currency — about{" "}
+            <strong className="text-[var(--foreground)]">€0.01 each</strong>. You create or
+            buy it in the Circles app.
+          </p>
+          <p>
+            You already have an account — so don’t register a new one. Open the Circles app
+            and click <strong className="text-[var(--foreground)]">Log in</strong> with your
+            passkey to finish your onboarding, then top up gCRC.
+          </p>
+          <a
+            href="https://app.gnosis.io"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 font-medium text-[var(--primary)] underline"
+          >
+            <ExternalLink className="h-3.5 w-3.5" /> Open app.gnosis.io
+          </a>
+        </Modal>
       </CardContent>
     </Card>
   );
