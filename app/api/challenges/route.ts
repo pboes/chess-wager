@@ -23,9 +23,17 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "Invalid address" }, { status: 400 });
   }
 
-  const challenges = (await getStore().listChallengesForUser(address)).sort(
-    (a, b) => b.createdAt - a.createdAt
-  );
+  const store = getStore();
+  // Challenges this wallet is in, plus open invites addressed to its Lichess
+  // username (so a friend sees an incoming challenge even before accepting).
+  const conn = await store.getLichess(address);
+  const [mine, invites] = await Promise.all([
+    store.listChallengesForUser(address),
+    conn ? store.listChallengesForUsername(conn.username) : Promise.resolve([]),
+  ]);
+  const byId = new Map<string, (typeof mine)[number]>();
+  for (const c of [...mine, ...invites]) byId.set(c.id, c);
+  const challenges = [...byId.values()].sort((a, b) => b.createdAt - a.createdAt);
 
   const pending = challenges
     .filter((c) => c.status === "accepted" || c.status === "created")

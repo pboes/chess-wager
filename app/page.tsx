@@ -3,16 +3,18 @@
 import * as React from "react";
 import { Loader2 } from "lucide-react";
 import { useWallet } from "@/components/wallet/wallet-provider";
+import { useChallenges } from "@/hooks/use-challenges";
 import { LichessConnect } from "@/components/lichess-connect";
+import { SummaryBar } from "@/components/summary-bar";
+import { IncomingChallenges } from "@/components/incoming-challenges";
 import { CreateChallenge } from "@/components/create-challenge";
-import { MyChallenges } from "@/components/my-challenges";
+import { ActiveGames } from "@/components/active-games";
+import { Rivals } from "@/components/rivals";
 import { Onboarding } from "@/components/onboarding";
-import { WalletBalances } from "@/components/wallet-balances";
 
 export default function Home() {
   const { address, isMiniappHost } = useWallet();
   const [lichessConnected, setLichessConnected] = React.useState<boolean | null>(null);
-  const [refreshKey, setRefreshKey] = React.useState(0);
 
   // Source-of-truth check (independent of which view is mounted) so a fully
   // onboarded returning user lands straight on the app.
@@ -34,26 +36,15 @@ export default function Home() {
     return () => {
       off = true;
     };
-  }, [address, refreshKey]);
+  }, [address]);
 
   const ready = Boolean(address) && lichessConnected === true;
   const checking = Boolean(address) && lichessConnected === null;
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-4">
+    <div className="mx-auto w-full max-w-3xl space-y-4">
       {ready ? (
-        <>
-          <WalletBalances />
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-4">
-              <LichessConnect onConnectionChange={setLichessConnected} />
-              <CreateChallenge onCreated={() => setRefreshKey((k) => k + 1)} />
-            </div>
-            <div className="space-y-4">
-              <MyChallenges refreshKey={refreshKey} />
-            </div>
-          </div>
-        </>
+        <AppHome onLichessChange={setLichessConnected} />
       ) : checking ? (
         <div className="flex justify-center py-16 text-[var(--muted-foreground)]">
           <Loader2 className="h-6 w-6 animate-spin" />
@@ -67,5 +58,27 @@ export default function Home() {
         />
       )}
     </div>
+  );
+}
+
+/** The hub for a fully-onboarded player. */
+function AppHome({ onLichessChange }: { onLichessChange: (c: boolean) => void }) {
+  const { challenges, refresh } = useChallenges();
+
+  return (
+    <>
+      <SummaryBar challenges={challenges} />
+      <IncomingChallenges challenges={challenges} onChange={refresh} />
+      <div className="grid gap-4 md:grid-cols-2">
+        <div className="space-y-4">
+          <CreateChallenge onCreated={refresh} />
+          <ActiveGames challenges={challenges} onChange={refresh} />
+        </div>
+        <div className="space-y-4">
+          <Rivals challenges={challenges} />
+        </div>
+      </div>
+      <LichessConnect onConnectionChange={onLichessChange} />
+    </>
   );
 }

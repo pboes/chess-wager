@@ -112,7 +112,7 @@ export async function settleChallenge(id: string): Promise<SettleOutcome> {
   }
   try {
     const playersMatch =
-      eq(game.white, c.challenger.username) && eq(game.black, c.opponent.username);
+      eq(game.white, c.challenger.username) && eq(game.black, c.opponent?.username);
 
     let result: ChallengeResult;
     if (game.winner && playersMatch) {

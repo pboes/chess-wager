@@ -36,13 +36,15 @@ export interface TimeControl {
   limit: number;
   /** Increment per move, seconds. */
   increment: number;
+  /** The stake this game costs, in CRC — longer game, higher stake. */
+  stake: number;
 }
 
 export const TIME_CONTROLS: TimeControl[] = [
-  { key: "10+0", label: "10 min", limit: 600, increment: 0 }, // rapid
-  { key: "5+3", label: "5 + 3", limit: 300, increment: 3 }, // blitz
-  { key: "3+2", label: "3 + 2", limit: 180, increment: 2 }, // blitz
-  { key: "1+0", label: "1 min", limit: 60, increment: 0 }, // bullet
+  { key: "1+0", label: "1 min", limit: 60, increment: 0, stake: 1 }, // bullet
+  { key: "3+2", label: "3 + 2", limit: 180, increment: 2, stake: 3 }, // blitz
+  { key: "5+3", label: "5 + 3", limit: 300, increment: 3, stake: 5 }, // blitz
+  { key: "10+0", label: "10 min", limit: 600, increment: 0, stake: 10 }, // rapid
 ];
 
 export const timeControlByKey = (k: string): TimeControl | undefined =>
@@ -105,7 +107,12 @@ export interface Challenge {
    *  for the opponent to re-stake the matching amount. */
   stakeCrc: number;
   challenger: PlayerRef;
-  opponent: PlayerRef;
+  /** The invited Lichess username (case-insensitive match on accept). The
+   *  opponent's wallet is unknown until they accept, so this — not an address —
+   *  is who the challenge is for. */
+  targetUsername: string;
+  /** Filled in when the invite is accepted (who actually showed up). */
+  opponent?: PlayerRef;
   stakes: { challenger?: StakeRecord; opponent?: StakeRecord };
   lichess?: LichessGameRef;
   result?: ChallengeResult;

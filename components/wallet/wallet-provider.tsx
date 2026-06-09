@@ -18,14 +18,33 @@ interface WalletContextValue {
    *  the new registered address; `onWalletChange` also fires. Must be called from
    *  a user gesture. Throws if cancelled or unsupported. */
   createAccount: () => Promise<{ address: string }>;
+  /** App-specific data the host forwarded via `?data=` (a challenge id from a
+   *  share link). Persisted so it survives onboarding; call `clearAppData` once
+   *  consumed. */
+  appData: string | null;
+  clearAppData: () => void;
 }
+
+const APP_DATA_KEY = "stakemate:appData";
 
 const WalletContext = React.createContext<WalletContextValue | null>(null);
 
 export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [address, setAddress] = React.useState<string | null>(null);
   const [isMiniappHost, setIsMiniappHost] = React.useState(false);
+  const [appData, setAppData] = React.useState<string | null>(null);
   const sdkRef = React.useRef<typeof import("@aboutcircles/miniapp-sdk") | null>(null);
+
+  // Rehydrate a previously-received share-link payload so it survives the
+  // onboarding round-trips (account creation, Lichess connect, reloads).
+  React.useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem(APP_DATA_KEY);
+      if (saved) setAppData(saved);
+    } catch {
+      /* storage blocked — fine */
+    }
+  }, []);
 
   React.useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -44,6 +63,17 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
         unsubscribe = sdk.onWalletChange((addr: string | null) => {
           setAddress(addr ?? null);
         });
+
+        // Share-link payload forwarded by the host (a challenge id). Persist it.
+        sdk.onAppData((data: string) => {
+          if (!data) return;
+          setAppData(data);
+          try {
+            window.localStorage.setItem(APP_DATA_KEY, data);
+          } catch {
+            /* storage blocked — in-memory state still works this session */
+          }
+        });
       } catch (err) {
         console.warn("[wallet] miniapp-sdk unavailable:", err);
       }
@@ -53,6 +83,15 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       unsubscribe?.();
     };
+  }, []);
+
+  const clearAppData = React.useCallback(() => {
+    setAppData(null);
+    try {
+      window.localStorage.removeItem(APP_DATA_KEY);
+    } catch {
+      /* ignore */
+    }
   }, []);
 
   const sendTransactions = React.useCallback(async (txs: TxRequest[]) => {
@@ -86,8 +125,10 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       sendTransactions,
       signMessage,
       createAccount,
+      appData,
+      clearAppData,
     }),
-    [address, isMiniappHost, sendTransactions, signMessage, createAccount]
+    [address, isMiniappHost, sendTransactions, signMessage, createAccount, appData, clearAppData]
   );
 
   return <WalletContext.Provider value={value}>{children}</WalletContext.Provider>;

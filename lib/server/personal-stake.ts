@@ -8,7 +8,8 @@
  * demurrage / inflationary wrappers (with the same sub-wei buffer), then
  * `Hub.safeTransferFrom`s exactly the amount.
  */
-import { encodeFunctionData, type Address } from "viem";
+import { createPublicClient, encodeFunctionData, http, parseAbiItem, type Address } from "viem";
+import { gnosis } from "viem/chains";
 import { CirclesConverter } from "@aboutcircles/sdk-utils/circlesConverter";
 import { CIRCLES_RPC_URL, HUB_V2_ADDRESS } from "@/lib/circles-config";
 
@@ -21,6 +22,32 @@ export interface SimpleTx {
 const UNWRAP_ABI = [
   { name: "unwrap", type: "function", stateMutability: "nonpayable", inputs: [{ type: "uint256" }], outputs: [] },
 ] as const;
+
+const PERSONAL_MINT_ABI = [
+  { name: "personalMint", type: "function", stateMutability: "nonpayable", inputs: [], outputs: [] },
+] as const;
+
+const publicClient = createPublicClient({ chain: gnosis, transport: http(CIRCLES_RPC_URL) });
+const calculateIssuanceAbi = [
+  parseAbiItem(
+    "function calculateIssuance(address _human) view returns (uint256 issuance, uint256 startPeriod, uint256 endPeriod)"
+  ),
+];
+
+/** Accrued-but-unminted personal CRC the avatar can mint right now (atto, demurraged). 0 if it can't mint. */
+async function mintableAtto(avatar: Address): Promise<bigint> {
+  try {
+    const out = (await publicClient.readContract({
+      address: HUB_V2_ADDRESS,
+      abi: calculateIssuanceAbi,
+      functionName: "calculateIssuance",
+      args: [avatar],
+    })) as readonly [bigint, bigint, bigint];
+    return out[0];
+  } catch {
+    return 0n;
+  }
+}
 
 const SAFE_TRANSFER_FROM_ABI = [
   {
@@ -86,7 +113,21 @@ export async function buildPersonalStakeTxs(
   const infWrap = own.find((t) => t.isErc20 && t.isInflationary);
 
   const txs: SimpleTx[] = [];
-  let need = amountAtto > native ? amountAtto - native : 0n;
+
+  // Mint accrued personal CRC under the hood — the user never claims manually.
+  // personalMint() adds the accrued issuance to the native ERC1155 balance, so we
+  // count it as available before reaching for the wrappers.
+  const accrued = await mintableAtto(avatar);
+  if (accrued > 0n) {
+    txs.push({
+      to: HUB_V2_ADDRESS,
+      data: encodeFunctionData({ abi: PERSONAL_MINT_ABI, functionName: "personalMint" }),
+      value: "0",
+    });
+  }
+
+  const available = native + accrued;
+  let need = amountAtto > available ? amountAtto - available : 0n;
 
   // Cover from the demurrage wrapper (1:1 demurraged).
   if (need > 0n && demWrap) {

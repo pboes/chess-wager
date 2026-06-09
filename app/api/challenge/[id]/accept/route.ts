@@ -41,8 +41,21 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
   if (Date.now() > c.expiresAt) {
     return NextResponse.json({ error: "This challenge has expired" }, { status: 410 });
   }
-  if (c.opponent.address !== opponent) {
-    return NextResponse.json({ error: "This challenge isn't addressed to you" }, { status: 403 });
+
+  // The invite is addressed to a Lichess username — the accepter claims it by
+  // having connected that exact account (OAuth already proved they own it).
+  const opponentConn = await store.getLichess(opponent);
+  if (!opponentConn) {
+    return NextResponse.json({ error: "Connect your Lichess account first" }, { status: 400 });
+  }
+  if (opponentConn.username.toLowerCase() !== c.targetUsername.toLowerCase()) {
+    return NextResponse.json(
+      { error: `This challenge is for Lichess user "${c.targetUsername}"` },
+      { status: 403 }
+    );
+  }
+  if (opponent === c.challenger.address.toLowerCase()) {
+    return NextResponse.json({ error: "You can't accept your own challenge" }, { status: 400 });
   }
   if (await store.isTxUsed(b.txHash)) {
     return NextResponse.json({ error: "This stake transaction was already used" }, { status: 409 });
@@ -62,6 +75,10 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     return NextResponse.json({ error: verified.reason ?? "Stake not verified" }, { status: 402 });
   }
   await store.markTxUsed(b.txHash);
+
+  // The opponent is now known — record them so the rest of the flow (game
+  // creation, settlement, their challenge list) can use it.
+  c.opponent = { address: opponent, username: opponentConn.username };
 
   // Create the bound Lichess game.
   let game;
@@ -97,6 +114,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ id: string }> 
     blackAddress: c.opponent.address,
   };
   await store.saveChallenge(c);
+  // Index it under the opponent's wallet so it appears in their challenge list.
+  await store.addUserChallenge(opponent, c.id);
 
   return NextResponse.json({ challenge: c });
 }

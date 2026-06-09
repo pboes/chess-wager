@@ -28,6 +28,11 @@ export interface StoreBackend {
   /** Overwrite a challenge (used for phase transitions). */
   saveChallenge(c: Challenge): Promise<void>;
   listChallengesForUser(address: string): Promise<Challenge[]>;
+  /** Index a challenge under the wallet of a player who joined it (the opponent,
+   *  once known) so it shows in their list too. */
+  addUserChallenge(address: string, id: string): Promise<void>;
+  /** Challenges that invite a given Lichess username (the share-link targets). */
+  listChallengesForUsername(username: string): Promise<Challenge[]>;
 
   isTxUsed(txHash: string): Promise<boolean>;
   markTxUsed(txHash: string): Promise<void>;
@@ -61,6 +66,7 @@ import IORedis from "ioredis";
 const K = {
   challenge: (id: string) => `cw:challenge:${id}`,
   user: (a: string) => `cw:user:${a.toLowerCase()}`,
+  invite: (u: string) => `cw:invite:${u.toLowerCase()}`,
   usedtx: "cw:usedtx",
   usedgame: "cw:usedgame",
   settle: (id: string) => `cw:settle:${id}`,
@@ -89,7 +95,7 @@ class RedisBackend implements StoreBackend {
     await Promise.all([
       this.redis.set(K.challenge(c.id), JSON.stringify(c)),
       this.redis.sadd(K.user(c.challenger.address), c.id),
-      this.redis.sadd(K.user(c.opponent.address), c.id),
+      this.redis.sadd(K.invite(c.targetUsername), c.id),
     ]);
   }
   async getChallenge(id: string) {
@@ -98,11 +104,19 @@ class RedisBackend implements StoreBackend {
   async saveChallenge(c: Challenge) {
     await this.redis.set(K.challenge(c.id), JSON.stringify(c));
   }
-  async listChallengesForUser(address: string) {
-    const ids = await this.redis.smembers(K.user(address));
+  private async challengesByIds(ids: string[]) {
     if (!ids.length) return [];
     const raw = await this.redis.mget(...ids.map(K.challenge));
     return raw.map((v) => parse<Challenge>(v)).filter((c): c is Challenge => !!c);
+  }
+  async listChallengesForUser(address: string) {
+    return this.challengesByIds(await this.redis.smembers(K.user(address)));
+  }
+  async addUserChallenge(address: string, id: string) {
+    await this.redis.sadd(K.user(address), id);
+  }
+  async listChallengesForUsername(username: string) {
+    return this.challengesByIds(await this.redis.smembers(K.invite(username)));
   }
 
   async isTxUsed(t: string) {
@@ -162,6 +176,7 @@ class RedisBackend implements StoreBackend {
 interface Doc {
   challenges: Record<string, Challenge>;
   userIndex: Record<string, string[]>;
+  inviteIndex: Record<string, string[]>;
   usedtx: string[];
   usedgame: string[];
   settled: string[];
@@ -171,6 +186,7 @@ interface Doc {
 const emptyDoc = (): Doc => ({
   challenges: {},
   userIndex: {},
+  inviteIndex: {},
   usedtx: [],
   usedgame: [],
   settled: [],
@@ -196,11 +212,12 @@ abstract class JsonDocBackend implements StoreBackend {
   async createChallenge(c: Challenge) {
     await this.mutate((d) => {
       d.challenges[c.id] = c;
-      for (const a of [c.challenger.address, c.opponent.address]) {
-        const key = a.toLowerCase();
-        (d.userIndex[key] ??= []);
-        if (!d.userIndex[key].includes(c.id)) d.userIndex[key].push(c.id);
-      }
+      const ukey = c.challenger.address.toLowerCase();
+      (d.userIndex[ukey] ??= []);
+      if (!d.userIndex[ukey].includes(c.id)) d.userIndex[ukey].push(c.id);
+      const ikey = c.targetUsername.toLowerCase();
+      (d.inviteIndex[ikey] ??= []);
+      if (!d.inviteIndex[ikey].includes(c.id)) d.inviteIndex[ikey].push(c.id);
     });
   }
   async getChallenge(id: string) {
@@ -214,6 +231,18 @@ abstract class JsonDocBackend implements StoreBackend {
   async listChallengesForUser(address: string) {
     const d = await this.load();
     const ids = d.userIndex[address.toLowerCase()] ?? [];
+    return ids.map((id) => d.challenges[id]).filter((c): c is Challenge => !!c);
+  }
+  async addUserChallenge(address: string, id: string) {
+    await this.mutate((d) => {
+      const key = address.toLowerCase();
+      (d.userIndex[key] ??= []);
+      if (!d.userIndex[key].includes(id)) d.userIndex[key].push(id);
+    });
+  }
+  async listChallengesForUsername(username: string) {
+    const d = await this.load();
+    const ids = d.inviteIndex[username.toLowerCase()] ?? [];
     return ids.map((id) => d.challenges[id]).filter((c): c is Challenge => !!c);
   }
 

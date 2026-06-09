@@ -12,19 +12,23 @@ import {
   type ChallengeMode,
 } from "@/lib/challenge/types";
 import { MIN_STAKE_CRC } from "@/lib/circles-config";
-import { randomString } from "@/lib/lichess";
+import { lichessUserExists, randomString } from "@/lib/lichess";
 
 export const dynamic = "force-dynamic";
 
 /**
- * POST { challengerAddress, opponentAddress, timeControlKey, stakeCrc, txHash }
- * The challenger has already staked into the escrow (txHash). We verify it,
- * confirm both players are connected, and open the challenge.
+ * POST { challengerAddress, targetUsername, timeControlKey, stakeCrc, mode, txHash }
+ *
+ * The challenger has already staked into the escrow (txHash). We verify the
+ * stake and open an invite addressed to a **Lichess username** — the opponent
+ * doesn't need an account yet; they claim it by connecting that account when
+ * they open the share link. The challenge is indexed under the target username
+ * so a registered friend also sees it in-app without the link.
  */
 export async function POST(req: Request) {
   let b: {
     challengerAddress?: string;
-    opponentAddress?: string;
+    targetUsername?: string;
     timeControlKey?: string;
     stakeCrc?: number;
     txHash?: string;
@@ -36,38 +40,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { challengerAddress, opponentAddress, timeControlKey, stakeCrc, txHash } = b;
+  const { challengerAddress, timeControlKey, stakeCrc, txHash } = b;
+  const targetUsername = b.targetUsername?.trim();
   const mode: ChallengeMode = b.mode === "personal" ? "personal" : "group";
-  if (!challengerAddress || !opponentAddress || !timeControlKey || !stakeCrc || !txHash) {
+  if (!challengerAddress || !targetUsername || !timeControlKey || !stakeCrc || !txHash) {
     return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
   }
 
-  let challenger: string, opponent: string;
+  let challenger: string;
   try {
     challenger = getAddress(challengerAddress).toLowerCase();
-    opponent = getAddress(opponentAddress).toLowerCase();
   } catch {
     return NextResponse.json({ error: "Invalid address" }, { status: 400 });
   }
-  if (challenger === opponent) {
-    return NextResponse.json({ error: "You can't challenge yourself" }, { status: 400 });
-  }
   if (stakeCrc < MIN_STAKE_CRC) {
-    return NextResponse.json({ error: `Minimum stake is ${MIN_STAKE_CRC} gCRC` }, { status: 400 });
+    return NextResponse.json({ error: `Minimum stake is ${MIN_STAKE_CRC} CRC` }, { status: 400 });
   }
   const tc = timeControlByKey(timeControlKey);
   if (!tc) return NextResponse.json({ error: "Unknown time control" }, { status: 400 });
 
   const store = getStore();
-  const [challengerConn, opponentConn] = await Promise.all([
-    store.getLichess(challenger),
-    store.getLichess(opponent),
-  ]);
+  const challengerConn = await store.getLichess(challenger);
   if (!challengerConn) {
     return NextResponse.json({ error: "Connect your Lichess account first" }, { status: 400 });
   }
-  if (!opponentConn) {
-    return NextResponse.json({ error: "That player hasn't connected Lichess" }, { status: 400 });
+  if (targetUsername.toLowerCase() === challengerConn.username.toLowerCase()) {
+    return NextResponse.json({ error: "You can't challenge yourself" }, { status: 400 });
+  }
+  // Make sure the invited name is a real Lichess account, so the link can't be
+  // sent to a username that can never accept.
+  if (!(await lichessUserExists(targetUsername))) {
+    return NextResponse.json(
+      { error: `No Lichess player named "${targetUsername}"` },
+      { status: 404 }
+    );
   }
 
   if (await store.isTxUsed(txHash)) {
@@ -96,7 +102,7 @@ export async function POST(req: Request) {
     stakeStaticAtto: toStatic(stakeAtto).toString(),
     stakeCrc,
     challenger: { address: challenger, username: challengerConn.username },
-    opponent: { address: opponent, username: opponentConn.username },
+    targetUsername,
     stakes: {
       challenger: {
         address: challenger,

@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/lib/server/store";
-import { LICHESS_CLIENT_ID, LICHESS_HOST, type LichessConnection } from "@/lib/lichess";
+import {
+  fetchFollowing,
+  LICHESS_CLIENT_ID,
+  LICHESS_HOST,
+  type LichessConnection,
+} from "@/lib/lichess";
 
 export const dynamic = "force-dynamic";
 
@@ -57,7 +62,11 @@ export async function GET(req: Request) {
   const username: string | undefined = acc?.username;
   const lichessId: string | undefined = acc?.id;
 
-  // We only needed identity — revoke the token.
+  // Capture the player's Lichess friends (who they follow) while we hold the
+  // token, so we can offer them as challenge targets. Best-effort.
+  const following = await fetchFollowing(accessToken);
+
+  // We needed identity + the follow list — revoke the token now.
   try {
     await fetch(`${LICHESS_HOST}/api/token`, {
       method: "DELETE",
@@ -83,6 +92,7 @@ export async function GET(req: Request) {
     address: h.address,
     connectedAt: Date.now(),
     sigVerified: h.sigVerified,
+    following,
   };
   await store.setLichess(h.address, conn);
 

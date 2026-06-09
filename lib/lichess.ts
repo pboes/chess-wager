@@ -15,8 +15,40 @@
  */
 export const LICHESS_HOST = "https://lichess.org";
 export const LICHESS_CLIENT_ID = "daily-chess-duel";
-/** Empty scope = identify only (read the public account/username). */
-export const LICHESS_SCOPES: string[] = [];
+/**
+ * `follow:read` lets us read who the player follows (their "friends") at connect
+ * time, so we can offer them as challenge targets. We use the token once, server-
+ * side, then revoke it — nothing is stored but the resulting usernames.
+ */
+export const LICHESS_SCOPES: string[] = ["follow:read"];
+
+/**
+ * Read the accounts a user follows via `GET /api/rel/following` (NDJSON stream of
+ * user objects). Best-effort: returns [] on any failure. Caller holds the token.
+ */
+export async function fetchFollowing(accessToken: string): Promise<string[]> {
+  try {
+    const res = await fetch(`${LICHESS_HOST}/api/rel/following`, {
+      headers: { Authorization: `Bearer ${accessToken}`, Accept: "application/x-ndjson" },
+    });
+    if (!res.ok) return [];
+    const text = await res.text();
+    const names: string[] = [];
+    for (const line of text.split("\n")) {
+      const t = line.trim();
+      if (!t) continue;
+      try {
+        const u = JSON.parse(t);
+        if (typeof u?.username === "string") names.push(u.username);
+      } catch {
+        /* skip malformed line */
+      }
+    }
+    return names;
+  } catch {
+    return [];
+  }
+}
 
 function base64url(bytes: Uint8Array): string {
   let s = "";
@@ -33,6 +65,20 @@ export function randomString(bytes = 32): string {
 export async function pkceChallenge(verifier: string): Promise<string> {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier));
   return base64url(new Uint8Array(digest));
+}
+
+/** Public check that a Lichess username exists. Lenient: returns true on a
+ *  network error so a transient outage can't block challenge creation. */
+export async function lichessUserExists(username: string): Promise<boolean> {
+  try {
+    const res = await fetch(`${LICHESS_HOST}/api/user/${encodeURIComponent(username)}`);
+    if (res.status === 404) return false;
+    if (!res.ok) return true; // rate-limited / transient → don't block
+    const u = await res.json();
+    return !u?.closed && !u?.disabled;
+  } catch {
+    return true;
+  }
 }
 
 export function buildAuthorizeUrl(opts: {
@@ -58,6 +104,8 @@ export interface LichessConnection {
   connectedAt: number;
   /** Whether the Circles-side wallet signature was verified (the 2nd handshake). */
   sigVerified: boolean;
+  /** Lichess usernames this player follows ("friends"), captured at connect time. */
+  following?: string[];
 }
 
 /** Transient state carrying one connection attempt across the new-tab OAuth. */
