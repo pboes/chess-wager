@@ -16,8 +16,6 @@ export function SummaryBar({ challenges }: { challenges: Challenge[] }) {
   const { balances, loading, refresh } = useBalances();
 
   const toPlay = attoToCrc(balances?.heldPersonalAtto) + attoToCrc(balances?.mintableAtto);
-  const group = attoToCrc(balances?.heldGroupAtto);
-  const hasGroup = Math.floor(group) >= 1;
   const { collected, players } = computeCollection(challenges, address ?? "");
 
   return (
@@ -36,12 +34,6 @@ export function SummaryBar({ challenges }: { challenges: Challenge[] }) {
               collected{players > 0 ? ` · ${players} rival${players === 1 ? "" : "s"}` : ""}
             </div>
           </div>
-          {hasGroup && (
-            <div>
-              <div className="text-lg font-bold tabular-nums">{fmt(group)}</div>
-              <div className="text-[10px] text-[var(--muted-foreground)]">group</div>
-            </div>
-          )}
         </div>
         <button
           onClick={refresh}

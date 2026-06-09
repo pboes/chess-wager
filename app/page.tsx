@@ -1,15 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Swords, Trophy, User } from "lucide-react";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useChallenges } from "@/hooks/use-challenges";
-import { LichessConnect } from "@/components/lichess-connect";
+import { Button } from "@/components/ui/button";
 import { SummaryBar } from "@/components/summary-bar";
 import { IncomingChallenges } from "@/components/incoming-challenges";
 import { CreateChallenge } from "@/components/create-challenge";
 import { ActiveGames } from "@/components/active-games";
 import { Rivals } from "@/components/rivals";
+import { Profile } from "@/components/profile";
 import { Onboarding } from "@/components/onboarding";
 
 export default function Home() {
@@ -42,7 +43,7 @@ export default function Home() {
   const checking = Boolean(address) && lichessConnected === null;
 
   return (
-    <div className="mx-auto w-full max-w-3xl space-y-4">
+    <div className="mx-auto w-full max-w-md space-y-4">
       {ready ? (
         <AppHome onLichessChange={setLichessConnected} />
       ) : checking ? (
@@ -61,24 +62,72 @@ export default function Home() {
   );
 }
 
-/** The hub for a fully-onboarded player. */
+type Tab = "play" | "trophies" | "profile";
+
+const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+  { key: "play", label: "Challenges", icon: Swords },
+  { key: "trophies", label: "Trophies", icon: Trophy },
+  { key: "profile", label: "Profile", icon: User },
+];
+
+/** The hub for a fully-onboarded player: Challenges · Trophies · Profile. */
 function AppHome({ onLichessChange }: { onLichessChange: (c: boolean) => void }) {
+  const { address } = useWallet();
   const { challenges, refresh } = useChallenges();
+  const [tab, setTab] = React.useState<Tab>("play");
+  const [creating, setCreating] = React.useState(false);
+
+  // Incoming invites waiting on me → a count badge on the Challenges tab.
+  const me = address?.toLowerCase() ?? "";
+  const incomingCount = challenges.filter(
+    (c) => c.status === "created" && c.challenger.address !== me
+  ).length;
 
   return (
     <>
-      <SummaryBar challenges={challenges} />
-      <IncomingChallenges challenges={challenges} onChange={refresh} />
-      <div className="grid gap-4 md:grid-cols-2">
+      {/* Tab bar */}
+      <div className="flex rounded-xl border border-[var(--border)] bg-[var(--card)] p-1">
+        {TABS.map(({ key, label, icon: Icon }) => (
+          <button
+            key={key}
+            onClick={() => setTab(key)}
+            className={`relative flex flex-1 items-center justify-center gap-1.5 rounded-lg py-2 text-sm font-medium transition ${
+              tab === key
+                ? "bg-[var(--primary)] text-white"
+                : "text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+            }`}
+          >
+            <Icon className="h-4 w-4" />
+            {label}
+            {key === "play" && incomingCount > 0 && (
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--accent)] px-1 text-[10px] font-bold text-white">
+                {incomingCount}
+              </span>
+            )}
+          </button>
+        ))}
+      </div>
+
+      {tab === "play" && (
         <div className="space-y-4">
-          <CreateChallenge onCreated={refresh} />
+          <SummaryBar challenges={challenges} />
+          <Button className="w-full" size="lg" onClick={() => setCreating(true)}>
+            <Plus className="h-5 w-5" /> Create new challenge
+          </Button>
+          <IncomingChallenges challenges={challenges} onChange={refresh} />
           <ActiveGames challenges={challenges} onChange={refresh} />
         </div>
-        <div className="space-y-4">
-          <Rivals challenges={challenges} />
-        </div>
-      </div>
-      <LichessConnect onConnectionChange={onLichessChange} />
+      )}
+
+      {tab === "trophies" && <Rivals challenges={challenges} />}
+
+      {tab === "profile" && <Profile onLichessChange={onLichessChange} />}
+
+      <CreateChallenge
+        open={creating}
+        onClose={() => setCreating(false)}
+        onCreated={refresh}
+      />
     </>
   );
 }

@@ -1,56 +1,106 @@
 "use client";
 
 import * as React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useStake } from "@/hooks/use-stake";
 import { useBalances, attoToCrc } from "@/hooks/use-balances";
-import { Modal } from "@/components/ui/modal";
 import { TIME_CONTROLS, type Challenge, type ChallengeMode } from "@/lib/challenge/types";
 import { challengeBlurb, challengeLink } from "@/lib/share";
-import { Check, Copy, ExternalLink, Loader2, Search, Swords } from "lucide-react";
+import { Check, Copy, ExternalLink, Loader2, Search, Swords, X } from "lucide-react";
 
-interface Friend {
+interface Suggestion {
   username: string;
-  registered: boolean;
   online: boolean;
-  playing: boolean;
+  friend: boolean;
 }
 
 type Phase = "idle" | "staking" | "creating" | "error";
 
-export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
+/** Modal: pick an opponent, choose a game (= stake), stake, and get a share link. */
+export function CreateChallenge({
+  open,
+  onClose,
+  onCreated,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onCreated?: () => void;
+}) {
   const { address } = useWallet();
   const { stake } = useStake();
   const { balances } = useBalances();
 
-  const [friends, setFriends] = React.useState<Friend[]>([]);
+  const friendsRef = React.useRef<Map<string, boolean>>(new Map()); // username → online
+  const [, force] = React.useReducer((x) => x + 1, 0);
   const [query, setQuery] = React.useState("");
   const [target, setTarget] = React.useState("");
+  const [scope, setScope] = React.useState<"friends" | "anyone">("friends");
+  const [results, setResults] = React.useState<Suggestion[]>([]);
   const [tcKey, setTcKey] = React.useState(TIME_CONTROLS[2].key); // 5+3 default
   const [mode, setMode] = React.useState<ChallengeMode>("personal");
   const [phase, setPhase] = React.useState<Phase>("idle");
   const [error, setError] = React.useState<string | null>(null);
   const [created, setCreated] = React.useState<Challenge | null>(null);
-  const [showGcrcInfo, setShowGcrcInfo] = React.useState(false);
 
+  // Load the player's Lichess friends once the modal opens.
   React.useEffect(() => {
-    if (!address) return;
+    if (!open || !address) return;
     let off = false;
     (async () => {
       try {
         const r = await fetch(`/api/friends?address=${address}`);
         const d = await r.json();
-        if (!off) setFriends(Array.isArray(d.friends) ? d.friends : []);
+        if (off) return;
+        const m = new Map<string, boolean>();
+        for (const f of d.friends ?? []) m.set(f.username, Boolean(f.online));
+        friendsRef.current = m;
+        force();
       } catch {
-        /* no friends list — typing a username still works */
+        /* typing a username still works */
       }
     })();
     return () => {
       off = true;
     };
-  }, [address]);
+  }, [open, address]);
+
+  // Live suggestions: friends first, then anyone on Lichess (autocomplete).
+  React.useEffect(() => {
+    const q = query.trim();
+    const friendMatches: Suggestion[] = [...friendsRef.current.entries()]
+      .filter(([name]) => (q ? name.toLowerCase().includes(q.toLowerCase()) : true))
+      .map(([username, online]) => ({ username, online, friend: true }));
+
+    // Friends-only scope, or too-short term for Lichess autocomplete (needs 3+).
+    if (scope === "friends" || q.length < 3) {
+      setResults(friendMatches.slice(0, 8));
+      return;
+    }
+    let off = false;
+    const t = setTimeout(async () => {
+      try {
+        const r = await fetch(`/api/lichess/search?term=${encodeURIComponent(q)}`);
+        const d = await r.json();
+        if (off) return;
+        const have = new Set(friendMatches.map((f) => f.username.toLowerCase()));
+        const others: Suggestion[] = (d.users ?? [])
+          .filter((u: { name: string }) => u.name && !have.has(u.name.toLowerCase()))
+          .map((u: { name: string; online: boolean }) => ({
+            username: u.name,
+            online: Boolean(u.online),
+            friend: false,
+          }));
+        setResults([...friendMatches, ...others].slice(0, 8));
+      } catch {
+        if (!off) setResults(friendMatches.slice(0, 8));
+      }
+    }, 250);
+    return () => {
+      off = true;
+      clearTimeout(t);
+    };
+  }, [query, scope]);
 
   const tc = TIME_CONTROLS.find((t) => t.key === tcKey) ?? TIME_CONTROLS[2];
   const stakeCrc = tc.stake;
@@ -60,11 +110,6 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
   const heldGroup = attoToCrc(balances?.heldGroupAtto);
   const held = mode === "personal" ? heldPersonal : heldGroup;
   const enough = held >= stakeCrc;
-
-  const q = query.trim().toLowerCase();
-  const suggestions = (
-    q ? friends.filter((f) => f.username.toLowerCase().includes(q)) : friends
-  ).slice(0, 6);
 
   const pick = (username: string) => {
     setTarget(username);
@@ -114,171 +159,205 @@ export function CreateChallenge({ onCreated }: { onCreated?: () => void }) {
     }
   }, [address, target, query, tcKey, stakeCrc, mode, stake, onCreated]);
 
-  const reset = () => {
+  const close = () => {
     setCreated(null);
     setTarget("");
     setQuery("");
+    setResults([]);
     setPhase("idle");
     setError(null);
+    onClose();
   };
 
+  if (!open) return null;
   const busy = phase === "staking" || phase === "creating";
-
-  if (created) return <ShareCard challenge={created} onDone={reset} />;
+  const showSuggestions = results.length > 0 && target.toLowerCase() !== query.trim().toLowerCase();
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Swords className="h-5 w-5 text-[var(--primary)]" />
-          Challenge a friend
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {/* Opponent — search your friends or type any Lichess name */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-[var(--muted-foreground)]">Who</label>
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
-            <input
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setTarget("");
-              }}
-              placeholder="Friend or Lichess username"
-              className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] py-2 pl-8 pr-3 text-sm"
-            />
-          </div>
-          {suggestions.length > 0 && target.toLowerCase() !== query.trim().toLowerCase() && (
-            <div className="flex flex-wrap gap-1.5 pt-0.5">
-              {suggestions.map((f) => (
-                <button
-                  key={f.username}
-                  onClick={() => pick(f.username)}
-                  className="flex items-center gap-1.5 rounded-full border border-[var(--border)] px-2.5 py-1 text-xs transition hover:border-[var(--primary)]"
-                >
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      f.playing
-                        ? "bg-[var(--primary)]"
-                        : f.online
-                          ? "bg-[var(--accent)]"
-                          : "bg-[var(--border)]"
-                    }`}
-                  />
-                  {f.username}
-                  {f.registered && <Check className="h-3 w-3 text-[var(--accent)]" />}
-                </button>
-              ))}
+    <div
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40 p-0 backdrop-blur-sm sm:items-center sm:p-4"
+      onClick={close}
+    >
+      <div
+        className="w-full max-w-md rounded-t-2xl border border-[var(--border)] bg-[var(--card)] p-5 shadow-popup sm:rounded-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-base font-semibold">
+            <Swords className="h-5 w-5 text-[var(--primary)]" />
+            {created ? `Challenge sent to ${created.targetUsername}` : "New challenge"}
+          </h2>
+          <button
+            onClick={close}
+            aria-label="Close"
+            className="rounded-md p-1 text-[var(--muted-foreground)] hover:bg-[var(--secondary)]"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        {created ? (
+          <ShareView challenge={created} onDone={close} />
+        ) : (
+          <div className="space-y-4">
+            {/* Opponent */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium text-[var(--muted-foreground)]">Who</label>
+                <div className="flex rounded-md border border-[var(--border)] p-0.5 text-[11px]">
+                  {(["friends", "anyone"] as const).map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => setScope(s)}
+                      className={`rounded px-2 py-0.5 capitalize transition ${
+                        scope === s
+                          ? "bg-[var(--primary)] text-white"
+                          : "text-[var(--muted-foreground)]"
+                      }`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="relative">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--muted-foreground)]" />
+                <input
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setTarget("");
+                  }}
+                  placeholder={
+                    scope === "friends" ? "Search your Lichess friends" : "Search any Lichess player"
+                  }
+                  type="text"
+                  name="lichess-opponent"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  data-1p-ignore="true"
+                  data-lpignore="true"
+                  data-form-type="other"
+                  className="w-full rounded-lg border border-[var(--border)] bg-[var(--background)] py-2 pl-8 pr-3 text-sm"
+                />
+              </div>
+              {showSuggestions && (
+                <div className="max-h-44 overflow-y-auto rounded-lg border border-[var(--border)]">
+                  {results.map((s) => (
+                    <button
+                      key={s.username}
+                      onClick={() => pick(s.username)}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition hover:bg-[var(--secondary)]"
+                    >
+                      <span
+                        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+                          s.online ? "bg-[var(--accent)]" : "bg-[var(--border)]"
+                        }`}
+                      />
+                      <span className="truncate">{s.username}</span>
+                      {s.friend && (
+                        <span className="ml-auto text-[10px] text-[var(--muted-foreground)]">
+                          friend
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
+              <p className="text-[11px] text-[var(--muted-foreground)]">
+                {scope === "friends"
+                  ? "Your Lichess friends. Switch to “anyone” to challenge any player."
+                  : "Any Lichess player — they don’t need an account here yet."}
+              </p>
             </div>
-          )}
-          {friends.length === 0 && (
-            <p className="text-[11px] text-[var(--muted-foreground)]">
-              Type any Lichess username — they don’t need an account here yet.
-            </p>
-          )}
-        </div>
 
-        {/* Time control = stake */}
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-[var(--muted-foreground)]">
-            Game — longer game, bigger stake
-          </label>
-          <div className="grid grid-cols-4 gap-2">
-            {TIME_CONTROLS.map((t) => (
+            {/* Time control = stake */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-[var(--muted-foreground)]">
+                Game — longer game, bigger stake
+              </label>
+              <div className="grid grid-cols-4 gap-2">
+                {TIME_CONTROLS.map((t) => (
+                  <button
+                    key={t.key}
+                    onClick={() => setTcKey(t.key)}
+                    className={`flex flex-col items-center rounded-lg border px-2 py-2 transition ${
+                      tcKey === t.key
+                        ? "border-[var(--primary)] bg-[var(--primary)] text-white"
+                        : "border-[var(--border)] hover:border-[var(--primary)]"
+                    }`}
+                  >
+                    <span className="text-sm font-semibold">{t.label}</span>
+                    <span className="text-[10px] opacity-80">
+                      {t.stake} {currency}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button className="w-full" disabled={busy || !enough} onClick={submit}>
+              {busy ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  {phase === "staking" ? "Staking…" : "Creating…"}
+                </>
+              ) : (
+                <>
+                  <Swords className="h-4 w-4" />
+                  Stake {stakeCrc} {currency} &amp; challenge
+                </>
+              )}
+            </Button>
+
+            {!enough && mode === "personal" && (
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Not enough personal CRC — you have {Math.floor(held)}. Pick a shorter game.
+              </p>
+            )}
+            {!enough && mode === "group" && (
+              <p className="text-xs text-[var(--muted-foreground)]">
+                Not enough gCRC. Get it in the{" "}
+                <a
+                  href="https://app.gnosis.io"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-0.5 font-medium text-[var(--primary)] underline"
+                >
+                  Circles app <ExternalLink className="h-3 w-3" />
+                </a>
+                .
+              </p>
+            )}
+
+            {/* Soft escalation to real money */}
+            <div className="flex items-center justify-between border-t border-[var(--border)] pt-2 text-xs">
+              <span className="text-[var(--muted-foreground)]">
+                Playing for{" "}
+                <strong className="text-[var(--foreground)]">
+                  {mode === "personal" ? "fun" : "real"}
+                </strong>
+              </span>
               <button
-                key={t.key}
-                onClick={() => setTcKey(t.key)}
-                className={`flex flex-col items-center rounded-lg border px-2 py-2 transition ${
-                  tcKey === t.key
-                    ? "border-[var(--primary)] bg-[var(--primary)] text-white"
-                    : "border-[var(--border)] hover:border-[var(--primary)]"
-                }`}
+                onClick={() => setMode((m) => (m === "personal" ? "group" : "personal"))}
+                className="font-medium text-[var(--primary)] underline"
               >
-                <span className="text-sm font-semibold">{t.label}</span>
-                <span className="text-[10px] opacity-80">
-                  {t.stake} {currency}
-                </span>
+                {mode === "personal" ? "Play for real →" : "Back to fun"}
               </button>
-            ))}
+            </div>
+
+            {error && <p className="text-xs text-[var(--destructive)]">{error}</p>}
           </div>
-        </div>
-
-        <Button className="w-full" disabled={busy || !enough} onClick={submit}>
-          {busy ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" />
-              {phase === "staking" ? "Staking…" : "Creating…"}
-            </>
-          ) : (
-            <>
-              <Swords className="h-4 w-4" />
-              Stake {stakeCrc} {currency} &amp; challenge
-            </>
-          )}
-        </Button>
-
-        {!enough && mode === "personal" && (
-          <p className="text-xs text-[var(--muted-foreground)]">
-            Not enough personal CRC — you have {Math.floor(held)}. Pick a shorter game.
-          </p>
         )}
-        {!enough && mode === "group" && (
-          <button
-            onClick={() => setShowGcrcInfo(true)}
-            className="text-left text-xs font-medium text-[var(--primary)] underline"
-          >
-            You don’t have enough gCRC — how to get it →
-          </button>
-        )}
-
-        {/* Soft escalation to real money — de-emphasised */}
-        <div className="flex items-center justify-between border-t border-[var(--border)] pt-2 text-xs">
-          <span className="text-[var(--muted-foreground)]">
-            Playing for{" "}
-            <strong className="text-[var(--foreground)]">
-              {mode === "personal" ? "fun (personal CRC)" : "real (group CRC)"}
-            </strong>
-          </span>
-          <button
-            onClick={() => setMode((m) => (m === "personal" ? "group" : "personal"))}
-            className="font-medium text-[var(--primary)] underline"
-          >
-            {mode === "personal" ? "Play for real →" : "Back to fun"}
-          </button>
-        </div>
-
-        {error && <p className="text-xs text-[var(--destructive)]">{error}</p>}
-
-        <Modal open={showGcrcInfo} onClose={() => setShowGcrcInfo(false)} title="Getting gCRC">
-          <p>
-            <strong className="text-[var(--foreground)]">Group CRC (gCRC)</strong> is the
-            “real money” currency — about{" "}
-            <strong className="text-[var(--foreground)]">€0.01 each</strong>. You create or
-            buy it in the Circles app.
-          </p>
-          <p>
-            You already have an account — so don’t register a new one. Open the Circles app
-            and click <strong className="text-[var(--foreground)]">Log in</strong> with your
-            passkey to finish your onboarding, then top up gCRC.
-          </p>
-          <a
-            href="https://app.gnosis.io"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 font-medium text-[var(--primary)] underline"
-          >
-            <ExternalLink className="h-3.5 w-3.5" /> Open app.gnosis.io
-          </a>
-        </Modal>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
 
-/** After a challenge is staked: hand the player a ready-to-send invite. */
-function ShareCard({ challenge, onDone }: { challenge: Challenge; onDone: () => void }) {
+/** After staking: hand the player a ready-to-send invite. */
+function ShareView({ challenge, onDone }: { challenge: Challenge; onDone: () => void }) {
   const blurb = challengeBlurb(challenge);
   const link = challengeLink(challenge.id);
   const [copied, setCopied] = React.useState<"blurb" | "link" | null>(null);
@@ -289,47 +368,36 @@ function ShareCard({ challenge, onDone }: { challenge: Challenge; onDone: () => 
       setCopied(what);
       setTimeout(() => setCopied((c) => (c === what ? null : c)), 1500);
     } catch {
-      /* clipboard blocked — the text is selectable below */
+      /* clipboard blocked — text is selectable */
     }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Swords className="h-5 w-5 text-[var(--primary)]" />
-          Challenge {challenge.targetUsername} — staked!
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        <p className="text-sm text-[var(--muted-foreground)]">
-          Your {challenge.stakeCrc} {(challenge.mode ?? "group") === "personal" ? "CRC" : "gCRC"} is
-          locked in. Send {challenge.targetUsername} this invite — they open it, connect Lichess,
-          and accept.
-        </p>
-        <textarea
-          readOnly
-          value={blurb}
-          rows={3}
-          className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--secondary)]/40 p-2.5 text-xs"
-        />
-        <div className="flex flex-wrap gap-2">
-          <Button size="sm" onClick={() => copy("blurb", blurb)}>
-            {copied === "blurb" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            {copied === "blurb" ? "Copied" : "Copy invite"}
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => copy("link", link)}>
-            {copied === "link" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-            {copied === "link" ? "Copied" : "Copy link only"}
-          </Button>
-        </div>
-        <button
-          onClick={onDone}
-          className="text-xs font-medium text-[var(--primary)] underline"
-        >
-          ← New challenge
-        </button>
-      </CardContent>
-    </Card>
+    <div className="space-y-3">
+      <p className="text-sm text-[var(--muted-foreground)]">
+        Your {challenge.stakeCrc}{" "}
+        {(challenge.mode ?? "group") === "personal" ? "CRC" : "gCRC"} is locked in. Send{" "}
+        {challenge.targetUsername} this — they open it, connect Lichess, and accept.
+      </p>
+      <textarea
+        readOnly
+        value={blurb}
+        rows={3}
+        className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--secondary)]/40 p-2.5 text-xs"
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button size="sm" onClick={() => copy("blurb", blurb)}>
+          {copied === "blurb" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copied === "blurb" ? "Copied" : "Copy invite"}
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => copy("link", link)}>
+          {copied === "link" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+          {copied === "link" ? "Copied" : "Copy link"}
+        </Button>
+      </div>
+      <Button variant="outline" className="w-full" onClick={onDone}>
+        Done
+      </Button>
+    </div>
   );
 }
