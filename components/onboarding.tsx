@@ -2,23 +2,22 @@
 
 import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { useWallet } from "@/components/wallet/wallet-provider";
 import { LichessConnect } from "@/components/lichess-connect";
 import { ConnectLichessFirst } from "@/components/connect-lichess-first";
 import { Modal } from "@/components/ui/modal";
-import { Crown, Loader2 } from "lucide-react";
 
 /**
  * Lichess-first onboarding. The headline action is "Connect your Lichess
  * account" — under the hood that runs Lichess OAuth and then creates a passkey
- * (the wallet), inheriting the Lichess username. Existing Circles users get a
- * secondary "I already have an account" route. The flow shown is chosen by
- * whether a wallet already exists.
+ * (the wallet), inheriting the Lichess username.
+ *
+ * Existing Circles users don't need a separate "log in" button: inside the host
+ * their wallet is already connected (`address` is set), so they land directly on
+ * the "connect Lichess to this wallet" branch.
  */
 export function Onboarding({
   address,
   isMiniappHost,
-  lichessConnected,
   onLichessChange,
 }: {
   address: string | null;
@@ -26,24 +25,7 @@ export function Onboarding({
   lichessConnected: boolean | null;
   onLichessChange: (connected: boolean) => void;
 }) {
-  const { createAccount } = useWallet();
-  const [loggingIn, setLoggingIn] = React.useState(false);
-  const [error, setError] = React.useState<string | null>(null);
   const [showInfo, setShowInfo] = React.useState(false);
-
-  // Existing Circles user logging in: open the host's log-in flow; the resulting
-  // address flips us into the "connect Lichess to this wallet" branch.
-  const loginExisting = React.useCallback(async () => {
-    setError(null);
-    setLoggingIn(true);
-    try {
-      await createAccount();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Log-in was cancelled.");
-    } finally {
-      setLoggingIn(false);
-    }
-  }, [createAccount]);
 
   return (
     <div className="mx-auto w-full max-w-md space-y-4">
@@ -56,15 +38,15 @@ export function Onboarding({
         </h2>
         <ul className="space-y-1.5 text-left text-sm">
           <li className="flex items-start gap-2">
-            <Crown className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary)]" />
+            <span className="text-[var(--primary)]">♟</span>
             <span>Every player earns 1 Crown an hour — no strings</span>
           </li>
           <li className="flex items-start gap-2">
-            <Crown className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary)]" />
+            <span className="text-[var(--primary)]">♟</span>
             <span>Challenge anyone by staking your Crowns</span>
           </li>
           <li className="flex items-start gap-2">
-            <Crown className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary)]" />
+            <span className="text-[var(--primary)]">♟</span>
             <span>Winner takes their stake back plus the loser’s Crowns — for the trophy shelf</span>
           </li>
         </ul>
@@ -83,7 +65,8 @@ export function Onboarding({
               Open Stakemate inside the Circles app to get started.
             </p>
           ) : address ? (
-            // Wallet exists (returning user, or just logged in) → connect Lichess to it.
+            // Wallet already connected (returning / existing Circles user) → just
+            // connect Lichess to it.
             <>
               <p className="text-sm text-[var(--muted-foreground)]">
                 Almost there — connect the Lichess account you’ll play with.
@@ -92,25 +75,7 @@ export function Onboarding({
             </>
           ) : (
             // No wallet yet → Lichess-first: OAuth, then a passkey is created for you.
-            <>
-              <ConnectLichessFirst onConnected={() => onLichessChange(true)} />
-              <div className="pt-1 text-center text-xs">
-                <button
-                  onClick={loginExisting}
-                  disabled={loggingIn}
-                  className="font-medium text-[var(--link)] underline disabled:opacity-60"
-                >
-                  {loggingIn ? (
-                    <span className="inline-flex items-center gap-1">
-                      <Loader2 className="h-3 w-3 animate-spin" /> Opening…
-                    </span>
-                  ) : (
-                    "I already have a Circles account"
-                  )}
-                </button>
-              </div>
-              {error && <p className="text-xs text-[var(--destructive)]">{error}</p>}
-            </>
+            <ConnectLichessFirst onConnected={() => onLichessChange(true)} />
           )}
         </CardContent>
       </Card>

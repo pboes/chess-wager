@@ -5,10 +5,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useStake } from "@/hooks/use-stake";
+import { Crowns } from "@/components/ui/crown";
 import type { Challenge } from "@/lib/challenge/types";
 import { Loader2, Swords } from "lucide-react";
 
-const currency = (c: Challenge) => ((c.mode ?? "group") === "personal" ? "Crowns" : "gCRC");
+/** Stake amount with its currency symbol: Crowns glyph (personal) or gCRC. */
+const amt = (c: Challenge) =>
+  (c.mode ?? "group") === "personal" ? <Crowns value={c.stakeCrc} /> : <>{c.stakeCrc} gCRC</>;
 
 /**
  * Incoming challenges to accept — the loud, top-of-page call to action. Sources:
@@ -111,17 +114,14 @@ export function IncomingChallenges({
                 <p className="text-sm">
                   <span className="font-semibold">{c.challenger.username}</span> challenged you —{" "}
                   <span className="font-semibold">{c.timeControl.label}</span> for{" "}
-                  <span className="font-semibold">
-                    {c.stakeCrc} {currency(c)}
-                  </span>
-                  . Winner takes the coins.
+                  <span className="font-semibold">{amt(c)}</span>. Winner takes the Crowns.
                 </p>
               </div>
               <Button className="w-full" disabled={busy} onClick={() => accept(c)}>
                 {busy ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
-                  `Accept · stake ${c.stakeCrc} ${currency(c)}`
+                  <>Accept · stake {amt(c)}</>
                 )}
               </Button>
               {error && busyId === null && (

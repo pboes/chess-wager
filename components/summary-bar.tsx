@@ -5,8 +5,9 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useBalances, attoToCrc } from "@/hooks/use-balances";
 import { computeCollection } from "@/lib/challenge/collection";
+import { Crowns } from "@/components/ui/crown";
 import type { Challenge } from "@/lib/challenge/types";
-import { Crown, RefreshCw } from "lucide-react";
+import { RefreshCw } from "lucide-react";
 
 const fmt = (n: number) => Math.floor(n).toLocaleString();
 
@@ -23,9 +24,8 @@ export function SummaryBar({ challenges }: { challenges: Challenge[] }) {
       <CardContent className="flex items-center justify-between gap-3 py-3">
         <div className="flex items-center gap-5">
           <div>
-            <div className="flex items-center gap-1 font-display text-lg font-bold tabular-nums">
-              <Crown className="h-4 w-4 text-[var(--primary)]" />
-              {fmt(toPlay)}
+            <div className="font-display text-lg font-bold">
+              <Crowns value={fmt(toPlay)} />
             </div>
             <div className="text-[10px] text-[var(--muted-foreground)]">Crowns to play</div>
           </div>

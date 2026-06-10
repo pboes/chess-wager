@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { Button } from "@/components/ui/button";
+import { Crowns } from "@/components/ui/crown";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useStake } from "@/hooks/use-stake";
 import { useBalances, attoToCrc } from "@/hooks/use-balances";
@@ -104,7 +105,9 @@ export function CreateChallenge({
 
   const tc = TIME_CONTROLS.find((t) => t.key === tcKey) ?? TIME_CONTROLS[2];
   const stakeCrc = tc.stake;
-  const currency = mode === "personal" ? "Crowns" : "gCRC";
+  // Render an amount with its currency symbol: Crowns glyph (personal) or gCRC.
+  const amt = (value: number) =>
+    mode === "personal" ? <Crowns value={value} /> : <>{value} gCRC</>;
 
   const heldPersonal = attoToCrc(balances?.heldPersonalAtto) + attoToCrc(balances?.mintableAtto);
   const heldGroup = attoToCrc(balances?.heldGroupAtto);
@@ -290,9 +293,7 @@ export function CreateChallenge({
                     }`}
                   >
                     <span className="text-sm font-semibold">{t.label}</span>
-                    <span className="text-[10px] opacity-80">
-                      {t.stake} {currency}
-                    </span>
+                    <span className="text-[10px] opacity-80">{amt(t.stake)}</span>
                   </button>
                 ))}
               </div>
@@ -307,7 +308,7 @@ export function CreateChallenge({
               ) : (
                 <>
                   <Swords className="h-4 w-4" />
-                  Stake {stakeCrc} {currency} &amp; challenge
+                  Stake {amt(stakeCrc)} &amp; challenge
                 </>
               )}
             </Button>
@@ -376,9 +377,14 @@ function ShareView({ challenge, onDone }: { challenge: Challenge; onDone: () => 
   return (
     <div className="space-y-3">
       <p className="text-sm text-[var(--muted-foreground)]">
-        Your {challenge.stakeCrc}{" "}
-        {(challenge.mode ?? "group") === "personal" ? "Crowns" : "gCRC"} are locked in. Send{" "}
-        {challenge.targetUsername} this — they open it, connect Lichess, and accept.
+        Your{" "}
+        {(challenge.mode ?? "group") === "personal" ? (
+          <Crowns value={challenge.stakeCrc} />
+        ) : (
+          <>{challenge.stakeCrc} gCRC</>
+        )}{" "}
+        are locked in. Send {challenge.targetUsername} this — they open it, connect Lichess, and
+        accept.
       </p>
       <textarea
         readOnly

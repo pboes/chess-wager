@@ -4,6 +4,7 @@ import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Crowns } from "@/components/ui/crown";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { opponentName } from "@/lib/challenge/collection";
 import type { Challenge } from "@/lib/challenge/types";
@@ -11,8 +12,9 @@ import { Clock, Copy, ExternalLink, Loader2, Swords } from "lucide-react";
 
 const STEPS = ["Accepted", "Play", "Settle"] as const;
 
-const currencyLabel = (c: Challenge) =>
-  (c.mode ?? "group") === "personal" ? "Crowns" : "gCRC";
+/** Stake amount with its currency symbol: Crowns glyph (personal) or gCRC. */
+const amt = (c: Challenge) =>
+  (c.mode ?? "group") === "personal" ? <Crowns value={c.stakeCrc} /> : <>{c.stakeCrc} gCRC</>;
 
 function formatRemaining(ms: number): string {
   if (ms <= 0) return "expired";
@@ -157,7 +159,7 @@ export function ActiveGames({
                 <span className="font-semibold">{c.timeControl.label}</span>
                 <span className="text-[var(--muted-foreground)]">
                   {" · "}
-                  {c.stakeCrc} {currencyLabel(c)} vs {them}
+                  {amt(c)} vs {them}
                 </span>
               </div>
               <p className="flex items-center gap-1 text-[11px] text-[var(--muted-foreground)]">
@@ -191,7 +193,7 @@ export function ActiveGames({
                 <span className="font-semibold">{c.timeControl.label}</span>
                 <span className="text-[var(--muted-foreground)]">
                   {" · "}
-                  {c.stakeCrc} {currencyLabel(c)} vs {them}
+                  {amt(c)} vs {them}
                 </span>
               </div>
               <Stepper active={activeStep(c.status)} />
@@ -243,7 +245,7 @@ export function ActiveGames({
                     <span className="font-medium">{c.timeControl.label}</span>
                     <span className="text-[var(--muted-foreground)]">
                       {" · "}
-                      {c.stakeCrc} {currencyLabel(c)} vs {them}
+                      {amt(c)} vs {them}
                     </span>
                   </span>
                   {c.status === "settled" ? (
