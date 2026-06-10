@@ -6,7 +6,7 @@ import { useWallet } from "@/components/wallet/wallet-provider";
 import { LichessConnect } from "@/components/lichess-connect";
 import { ConnectLichessFirst } from "@/components/connect-lichess-first";
 import { Modal } from "@/components/ui/modal";
-import { Loader2 } from "lucide-react";
+import { Crown, Loader2 } from "lucide-react";
 
 /**
  * Lichess-first onboarding. The headline action is "Connect your Lichess
@@ -50,25 +50,30 @@ export function Onboarding({
       {/* Pitch — lead with Lichess */}
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/chess-puzzle-avatar-512.png" alt="Stakemate" className="h-16 w-16 rounded-2xl" />
-        <h2 className="text-xl font-bold">Your Lichess games, with stakes</h2>
-        <p className="text-sm text-[var(--muted-foreground)]">
-          Challenge anyone on Lichess, put Crowns on the line, and climb the leaderboard.
-        </p>
+        <img src="/chess-puzzle-avatar-512.png" alt="Stakemate" className="h-16 w-16 rounded" />
+        <h2 className="font-display text-xl font-bold text-[var(--foreground)]">
+          Your Lichess games, with stakes
+        </h2>
         <ul className="space-y-1.5 text-left text-sm">
           <li className="flex items-start gap-2">
-            <span className="text-[var(--primary)]">♟</span>
-            <span>Connect your Lichess account to start</span>
+            <Crown className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary)]" />
+            <span>Every player earns 1 Crown an hour — no strings</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-[var(--primary)]">♟</span>
-            <span>Earn a Crown an hour — stake them on challenges</span>
+            <Crown className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary)]" />
+            <span>Challenge anyone by staking your Crowns</span>
           </li>
           <li className="flex items-start gap-2">
-            <span className="text-[var(--primary)]">♟</span>
-            <span>Beat stronger players to score more</span>
+            <Crown className="mt-0.5 h-4 w-4 shrink-0 text-[var(--primary)]" />
+            <span>Winner takes their stake back plus the loser’s Crowns — for the trophy shelf</span>
           </li>
         </ul>
+        <p className="text-xs text-[var(--muted-foreground)]">
+          Stakemate uses Circles to track your Crowns.{" "}
+          <button onClick={() => setShowInfo(true)} className="font-medium text-[var(--link)] underline">
+            What’s Circles?
+          </button>
+        </p>
       </div>
 
       <Card>
@@ -89,11 +94,11 @@ export function Onboarding({
             // No wallet yet → Lichess-first: OAuth, then a passkey is created for you.
             <>
               <ConnectLichessFirst onConnected={() => onLichessChange(true)} />
-              <div className="flex items-center justify-between pt-1 text-xs">
+              <div className="pt-1 text-center text-xs">
                 <button
                   onClick={loginExisting}
                   disabled={loggingIn}
-                  className="font-medium text-[var(--primary)] underline disabled:opacity-60"
+                  className="font-medium text-[var(--link)] underline disabled:opacity-60"
                 >
                   {loggingIn ? (
                     <span className="inline-flex items-center gap-1">
@@ -102,12 +107,6 @@ export function Onboarding({
                   ) : (
                     "I already have a Circles account"
                   )}
-                </button>
-                <button
-                  onClick={() => setShowInfo(true)}
-                  className="text-[var(--muted-foreground)] underline"
-                >
-                  What’s Circles?
                 </button>
               </div>
               {error && <p className="text-xs text-[var(--destructive)]">{error}</p>}
@@ -139,7 +138,7 @@ export function Onboarding({
           href="https://aboutcircles.com/"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex font-medium text-[var(--primary)] underline"
+          className="inline-flex font-medium text-[var(--link)] underline"
         >
           Learn more at aboutcircles.com →
         </a>

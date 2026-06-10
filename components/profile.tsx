@@ -2,25 +2,21 @@
 
 import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { ShieldCheck } from "lucide-react";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { LichessConnect } from "@/components/lichess-connect";
 
-/** Account screen: Circles wallet + Lichess link/unlink. */
+/** Account screen: Circles account status + Lichess link/unlink. */
 export function Profile({ onLichessChange }: { onLichessChange: (c: boolean) => void }) {
   const { address } = useWallet();
   return (
     <div className="space-y-4">
       <Card>
-        <CardContent className="space-y-1 py-4">
-          <div className="text-[11px] font-medium uppercase tracking-wide text-[var(--muted-foreground)]">
-            Circles wallet
-          </div>
-          <div className="font-mono text-sm">
-            {address ? `${address.slice(0, 10)}…${address.slice(-6)}` : "—"}
-          </div>
-          <p className="text-[11px] text-[var(--muted-foreground)]">
-            Holds your coins and your winnings.
-          </p>
+        <CardContent className="flex items-center gap-2 py-3 text-sm">
+          <ShieldCheck className="h-4 w-4 text-[var(--accent)]" />
+          <span className={address ? "" : "text-[var(--muted-foreground)]"}>
+            {address ? "Circles account active — it holds your Crowns" : "No account yet"}
+          </span>
         </CardContent>
       </Card>
       <LichessConnect onConnectionChange={onLichessChange} />

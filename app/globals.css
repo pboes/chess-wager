@@ -1,48 +1,59 @@
 @import "tailwindcss";
 
 /* ───────────────────────────────────────────────────────────
-   Gnosis / Circles design system tokens (mirrors the host's
-   style.css) mapped onto the app's semantic variable names.
+   Lichess × Circles hybrid theme.
+   Chassis = Lichess dark (warm charcoal, dense, flat, gray text,
+   blue links). Identity = Circles (orange primary action, indigo
+   brand surfaces, DM Sans display). Mapped onto the app's existing
+   semantic variable names so the re-skin propagates everywhere.
    ─────────────────────────────────────────────────────────── */
 :root {
-  /* Backgrounds */
-  --bg-a: #faf5f1; /* warm beige */
-  --bg-b: #f6f7f9; /* cool sage */
+  /* Surfaces — Lichess dark */
+  --background: #161512; /* page */
+  --foreground: #e8e6e3; /* primary text (strong) */
+  --card: #262421; /* box / card surface */
+  --card-foreground: #e8e6e3;
 
-  --background: #f6f7f9;
-  --foreground: #05061a; /* ink */
-  --card: #ffffff;
-  --card-foreground: #05061a;
-
-  /* Brand / primary actions = host blue accent */
-  --primary: #0e00a8;
+  /* Primary action = Circles Orange (the brand twist) */
+  --primary: #ff491b;
   --primary-foreground: #ffffff;
-  --accent-mid: #4335df;
-  --accent-soft: #eae8ff;
 
-  /* Secondary / muted surfaces */
-  --secondary: #efeefb;
-  --secondary-foreground: #2a2b45;
-  --muted: #f4eee9;
-  --muted-foreground: #51526e;
+  /* Links stay Lichess-blue (familiarity) */
+  --link: #3692e7;
+  --link-hover: #5ba8ee;
 
-  /* "accent" in this app = success/money green (pot, solves) */
-  --accent: #15803d;
+  /* Circles "territory" surfaces (indigo) */
+  --brand-surface: #251b9f;
+  --brand-surface-deep: #191568;
+  --brand-on-surface: #e5e3fb;
+  --brand-accent-text: #b0a9f3;
+
+  /* Secondary / muted surfaces — Lichess */
+  --secondary: #3c3934; /* surface-2 */
+  --secondary-foreground: #e8e6e3;
+  --muted: #33312e; /* zebra */
+  --muted-foreground: #949494;
+
+  /* "accent" in this app = good / win / score → Lichess green */
+  --accent: #629924;
   --accent-foreground: #ffffff;
 
-  --destructive: #b42318;
+  --destructive: #cc3333;
   --destructive-foreground: #ffffff;
 
-  --border: #eee7e2; /* line */
-  --line-soft: #f4eee9;
-  --input: #eae3dd;
-  --ring: #4335df;
+  --border: #404040;
+  --border-strong: #666666;
+  --input: #3c3934;
+  --ring: #3692e7;
 
-  /* Radii & elevation */
-  --radius: 22px;
+  /* Near-square radii — very Lichess; pills only for avatars/chips. */
+  --radius: 3px;
   --radius-pill: 999px;
-  --shadow-card: 0 8px 30px rgba(5, 6, 26, 0.08), inset 0 1px 0 #fff;
-  --shadow-popup: 0 8px 40px rgba(5, 6, 26, 0.12);
+
+  /* Elevation = borders, not shadows (both brands are flat). */
+  --shadow-card: none;
+  --shadow-popup: 0 10px 40px rgba(0, 0, 0, 0.5);
+  --metal: linear-gradient(to bottom, #3c3934, #33312e);
 }
 
 @theme inline {
@@ -62,10 +73,16 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-border: var(--border);
   --color-ring: var(--ring);
-  --radius-lg: var(--radius);
-  --radius-md: 14px;
-  --radius-sm: 10px;
-  --font-sans: var(--font-space), ui-sans-serif, system-ui, sans-serif;
+
+  /* Near-square across the whole utility scale. */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 3px;
+  --radius-xl: 4px;
+  --radius-2xl: 6px;
+
+  --font-sans: var(--font-noto), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-dm), var(--font-noto), sans-serif;
 }
 
 * {
@@ -84,28 +101,23 @@ body {
 }
 
 body {
-  font-family: var(--font-space), -apple-system, ui-sans-serif, system-ui,
-    "Segoe UI", sans-serif;
-  /* Warm gradient with subtle brand tints — same recipe as the host. */
-  background:
-    radial-gradient(1200px 500px at 0% 0%, rgba(14, 0, 168, 0.03) 0%, transparent 65%),
-    radial-gradient(900px 500px at 100% 20%, rgba(255, 125, 62, 0.05) 0%, transparent 70%),
-    linear-gradient(145deg, var(--bg-a), var(--bg-b));
+  font-family: var(--font-noto), -apple-system, ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  font-size: 14px; /* Lichess base — dense; do not enlarge. */
+  background: var(--background); /* flat dark, no decorative gradient */
   min-height: 100dvh;
 }
 
-/* Surface helpers using the host's elevation tokens. */
+/* DM Sans, brand/display only. */
+.font-display {
+  font-family: var(--font-dm), var(--font-noto), sans-serif;
+}
+
+/* Flat: card lift is off; modal keeps a faint separation on dark. */
 .shadow-card {
   box-shadow: var(--shadow-card);
 }
 .shadow-popup {
   box-shadow: var(--shadow-popup);
-}
-
-@keyframes pulse-ring {
-  0% { box-shadow: 0 0 0 0 rgba(14, 0, 168, 0.4); }
-  70% { box-shadow: 0 0 0 12px rgba(14, 0, 168, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(14, 0, 168, 0); }
 }
 
 @keyframes shake {
@@ -114,7 +126,15 @@ body {
   30%, 50%, 70% { transform: translateX(-4px); }
   40%, 60% { transform: translateX(4px); }
 }
-
 .animate-shake {
   animation: shake 0.45s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }

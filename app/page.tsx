@@ -89,7 +89,7 @@ function AppHome({ onLichessChange }: { onLichessChange: (c: boolean) => void })
     <>
       {/* Header */}
       <div className="flex items-center justify-between px-1">
-        <h1 className="flex items-center gap-1.5 text-base font-bold">
+        <h1 className="flex items-center gap-1.5 font-display text-base font-bold">
           <span className="text-[var(--primary)]">♟</span> Stakemate
         </h1>
         <button
@@ -110,9 +110,10 @@ function AppHome({ onLichessChange }: { onLichessChange: (c: boolean) => void })
           automatically. Stake them to challenge any Lichess player to a game.
         </p>
         <p>
-          <strong className="text-[var(--foreground)]">Win</strong> and you keep your Crowns and
-          take your opponent’s. <strong className="text-[var(--foreground)]">Lose</strong> and you
-          forfeit your stake. Out of Crowns? Wait a bit — they tick back up.
+          <strong className="text-[var(--foreground)]">Win</strong> and you get your stake back plus
+          your opponent’s Crowns — for the trophy shelf.{" "}
+          <strong className="text-[var(--foreground)]">Lose</strong> and you forfeit your stake. Out
+          of Crowns? Wait a bit — they tick back up.
         </p>
         <p>
           Your <strong className="text-[var(--foreground)]">score</strong> is the value of everyone

@@ -325,7 +325,7 @@ export function CreateChallenge({
                   href="https://app.gnosis.io"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 font-medium text-[var(--primary)] underline"
+                  className="inline-flex items-center gap-0.5 font-medium text-[var(--link)] underline"
                 >
                   Circles app <ExternalLink className="h-3 w-3" />
                 </a>
@@ -343,7 +343,7 @@ export function CreateChallenge({
               </span>
               <button
                 onClick={() => setMode((m) => (m === "personal" ? "group" : "personal"))}
-                className="font-medium text-[var(--primary)] underline"
+                className="font-medium text-[var(--link)] underline"
               >
                 {mode === "personal" ? "Play for real →" : "Back to fun"}
               </button>

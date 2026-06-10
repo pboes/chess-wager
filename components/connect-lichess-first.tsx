@@ -146,8 +146,12 @@ export function ConnectLichessFirst({ onConnected }: { onConnected: () => void }
     return (
       <div className="space-y-3">
         <p className="text-sm">
-          Lichess connected{username ? <> as <strong>{username}</strong></> : ""} ✓ One last tap to
-          create your secure key — it’s instant, with nothing to write down.
+          Lichess connected{username ? <> as <strong>{username}</strong></> : ""} ✓
+        </p>
+        <p className="text-sm text-[var(--muted-foreground)]">
+          Next we’ll create a <strong className="text-[var(--foreground)]">passkey</strong> — a
+          secure key on this device we’ll use to log you in directly in future. It’s instant, with
+          nothing to write down.
         </p>
         <Button className="w-full" disabled={phase === "finishing"} onClick={finish}>
           {phase === "finishing" ? (

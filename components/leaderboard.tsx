@@ -160,7 +160,9 @@ function YouView({ challenges }: { challenges: Challenge[] }) {
   return (
     <div className="space-y-3">
       <div className="rounded-lg bg-[var(--secondary)]/40 py-3 text-center">
-        <div className="text-2xl font-bold tabular-nums text-[var(--accent)]">{fmt(collected)}</div>
+        <div className="font-display text-2xl font-bold tabular-nums text-[var(--accent)]">
+          {fmt(collected)}
+        </div>
         <div className="text-[11px] text-[var(--muted-foreground)]">your score — won off rivals</div>
       </div>
       {rivals.length === 0 ? (

@@ -1,12 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Space_Grotesk } from "next/font/google";
+import { DM_Sans, Noto_Sans } from "next/font/google";
 import "./globals.css";
 import { WalletProvider } from "@/components/wallet/wallet-provider";
 
-// Self-hosted at build time (no runtime font requests → no CSP changes).
-const spaceGrotesk = Space_Grotesk({
+// Lichess UI font (Noto Sans) for the interface; Circles brand font (DM Sans)
+// for display/brand moments. Self-hosted at build time (no runtime requests).
+const notoSans = Noto_Sans({
   subsets: ["latin"],
-  variable: "--font-space",
+  variable: "--font-noto",
+  display: "swap",
+});
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  variable: "--font-dm",
   display: "swap",
 });
 
@@ -28,12 +34,12 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  themeColor: "#faf5f1",
+  themeColor: "#161512",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={spaceGrotesk.variable}>
+    <html lang="en" className={`${notoSans.variable} ${dmSans.variable}`}>
       <body>
         <WalletProvider>
           <div className="min-h-dvh px-4 pb-12 pt-5">
