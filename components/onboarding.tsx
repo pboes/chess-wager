@@ -4,6 +4,7 @@ import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { LichessConnect } from "@/components/lichess-connect";
 import { ConnectLichessFirst } from "@/components/connect-lichess-first";
+import { Crowns } from "@/components/ui/crown";
 import { Modal } from "@/components/ui/modal";
 
 /**
@@ -39,19 +40,25 @@ export function Onboarding({
         <ul className="space-y-1.5 text-left text-sm">
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Every player earns 1 Crown an hour — no strings</span>
+            <span>
+              Every player earns <Crowns value={1} /> an hour — no strings
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Challenge anyone by staking your Crowns</span>
+            <span>
+              Challenge anyone by staking your <Crowns />
+            </span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Winner takes their stake back plus the loser’s Crowns — for the trophy shelf</span>
+            <span>
+              Winner takes their stake back plus the loser’s <Crowns /> — for the trophy shelf
+            </span>
           </li>
         </ul>
         <p className="text-xs text-[var(--muted-foreground)]">
-          Stakemate uses Circles to track your Crowns.{" "}
+          Stakemate uses Circles to track your <Crowns />.{" "}
           <button onClick={() => setShowInfo(true)} className="font-medium text-[var(--link)] underline">
             What’s Circles?
           </button>
