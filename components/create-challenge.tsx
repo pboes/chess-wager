@@ -6,9 +6,9 @@ import { Crowns } from "@/components/ui/crown";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useStake } from "@/hooks/use-stake";
 import { useBalances, attoToCrc } from "@/hooks/use-balances";
-import { TIME_CONTROLS, type Challenge, type ChallengeMode } from "@/lib/challenge/types";
+import { TIME_CONTROLS, type Challenge } from "@/lib/challenge/types";
 import { challengeBlurb, challengeLink } from "@/lib/share";
-import { Check, Copy, ExternalLink, Loader2, Search, Swords, X } from "lucide-react";
+import { Check, Copy, Loader2, Search, Swords, X } from "lucide-react";
 
 interface Suggestion {
   username: string;
@@ -39,7 +39,6 @@ export function CreateChallenge({
   const [scope, setScope] = React.useState<"friends" | "anyone">("friends");
   const [results, setResults] = React.useState<Suggestion[]>([]);
   const [tcKey, setTcKey] = React.useState(TIME_CONTROLS[2].key); // 5+3 default
-  const [mode, setMode] = React.useState<ChallengeMode>("personal");
   const [phase, setPhase] = React.useState<Phase>("idle");
   const [error, setError] = React.useState<string | null>(null);
   const [created, setCreated] = React.useState<Challenge | null>(null);
@@ -105,13 +104,10 @@ export function CreateChallenge({
 
   const tc = TIME_CONTROLS.find((t) => t.key === tcKey) ?? TIME_CONTROLS[2];
   const stakeCrc = tc.stake;
-  // Render an amount with its currency symbol: Crowns glyph (personal) or gCRC.
-  const amt = (value: number) =>
-    mode === "personal" ? <Crowns value={value} /> : <>{value} gCRC</>;
+  const amt = (value: number) => <Crowns value={value} />;
 
-  const heldPersonal = attoToCrc(balances?.heldPersonalAtto) + attoToCrc(balances?.mintableAtto);
-  const heldGroup = attoToCrc(balances?.heldGroupAtto);
-  const held = mode === "personal" ? heldPersonal : heldGroup;
+  // Crowns = held personal CRC + accrued (the stake mints the accrued part).
+  const held = attoToCrc(balances?.heldPersonalAtto) + attoToCrc(balances?.mintableAtto);
   const enough = held >= stakeCrc;
 
   const pick = (username: string) => {
@@ -129,7 +125,7 @@ export function CreateChallenge({
     setError(null);
     try {
       setPhase("staking");
-      const hashes = await stake(stakeCrc, mode);
+      const hashes = await stake(stakeCrc, "personal");
       setPhase("creating");
       let lastErr = "Couldn’t create the challenge.";
       for (const txHash of hashes) {
@@ -141,7 +137,7 @@ export function CreateChallenge({
             targetUsername: name,
             timeControlKey: tcKey,
             stakeCrc,
-            mode,
+            mode: "personal",
             txHash,
           }),
         });
@@ -160,7 +156,7 @@ export function CreateChallenge({
       setError(err instanceof Error ? err.message : String(err));
       setPhase("error");
     }
-  }, [address, target, query, tcKey, stakeCrc, mode, stake, onCreated]);
+  }, [address, target, query, tcKey, stakeCrc, stake, onCreated]);
 
   const close = () => {
     setCreated(null);
@@ -313,42 +309,12 @@ export function CreateChallenge({
               )}
             </Button>
 
-            {!enough && mode === "personal" && (
+            {!enough && (
               <p className="text-xs text-[var(--muted-foreground)]">
                 Not enough Crowns — you have {Math.floor(held)}. Pick a shorter game, or wait —
                 you earn 1 an hour.
               </p>
             )}
-            {!enough && mode === "group" && (
-              <p className="text-xs text-[var(--muted-foreground)]">
-                Not enough gCRC. Get it in the{" "}
-                <a
-                  href="https://app.gnosis.io"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-0.5 font-medium text-[var(--link)] underline"
-                >
-                  Circles app <ExternalLink className="h-3 w-3" />
-                </a>
-                .
-              </p>
-            )}
-
-            {/* Soft escalation to real money */}
-            <div className="flex items-center justify-between border-t border-[var(--border)] pt-2 text-xs">
-              <span className="text-[var(--muted-foreground)]">
-                Playing for{" "}
-                <strong className="text-[var(--foreground)]">
-                  {mode === "personal" ? "fun" : "real"}
-                </strong>
-              </span>
-              <button
-                onClick={() => setMode((m) => (m === "personal" ? "group" : "personal"))}
-                className="font-medium text-[var(--link)] underline"
-              >
-                {mode === "personal" ? "Play for real →" : "Back to fun"}
-              </button>
-            </div>
 
             {error && <p className="text-xs text-[var(--destructive)]">{error}</p>}
           </div>
@@ -377,14 +343,8 @@ function ShareView({ challenge, onDone }: { challenge: Challenge; onDone: () => 
   return (
     <div className="space-y-3">
       <p className="text-sm text-[var(--muted-foreground)]">
-        Your{" "}
-        {(challenge.mode ?? "group") === "personal" ? (
-          <Crowns value={challenge.stakeCrc} />
-        ) : (
-          <>{challenge.stakeCrc} gCRC</>
-        )}{" "}
-        are locked in. Send {challenge.targetUsername} this — they open it, connect Lichess, and
-        accept.
+        Your <Crowns value={challenge.stakeCrc} /> are locked in. Send {challenge.targetUsername}{" "}
+        this — they open it, connect Lichess, and accept.
       </p>
       <textarea
         readOnly

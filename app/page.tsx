@@ -1,12 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { HelpCircle, Loader2, Plus, Swords, Trophy, User } from "lucide-react";
+import { HelpCircle, Loader2, Plus, RefreshCw, Trophy, User, Swords } from "lucide-react";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useChallenges } from "@/hooks/use-challenges";
+import { useBalances, attoToCrc } from "@/hooks/use-balances";
+import { computeCollection } from "@/lib/challenge/collection";
 import { Button } from "@/components/ui/button";
+import { Crowns } from "@/components/ui/crown";
 import { Modal } from "@/components/ui/modal";
-import { SummaryBar } from "@/components/summary-bar";
 import { IncomingChallenges } from "@/components/incoming-challenges";
 import { CreateChallenge } from "@/components/create-challenge";
 import { ActiveGames } from "@/components/active-games";
@@ -72,18 +74,28 @@ const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: s
 ];
 
 /** The hub for a fully-onboarded player: Challenges · Trophies · Profile. */
+const fmt = (n: number) => Math.floor(n).toLocaleString();
+
 function AppHome({ onLichessChange }: { onLichessChange: (c: boolean) => void }) {
   const { address } = useWallet();
   const { challenges, refresh } = useChallenges();
+  const { balances, loading: balLoading, refresh: refreshBalances } = useBalances();
   const [tab, setTab] = React.useState<Tab>("play");
   const [creating, setCreating] = React.useState(false);
+  const [showHelp, setShowHelp] = React.useState(false);
 
   // Incoming invites waiting on me → a count badge on the Challenges tab.
   const me = address?.toLowerCase() ?? "";
   const incomingCount = challenges.filter(
     (c) => c.status === "created" && c.challenger.address !== me
   ).length;
-  const [showHelp, setShowHelp] = React.useState(false);
+
+  const crowns = attoToCrc(balances?.heldPersonalAtto) + attoToCrc(balances?.mintableAtto);
+  const { collected, players } = computeCollection(challenges, address ?? "");
+  const refreshAll = () => {
+    refresh();
+    refreshBalances();
+  };
 
   return (
     <>
@@ -92,13 +104,44 @@ function AppHome({ onLichessChange }: { onLichessChange: (c: boolean) => void })
         <h1 className="flex items-center gap-1.5 font-display text-base font-bold">
           <span className="text-[var(--primary)]">♟</span> Stakemate
         </h1>
-        <button
-          onClick={() => setShowHelp(true)}
-          aria-label="How it works"
-          className="text-[var(--muted-foreground)] transition hover:text-[var(--foreground)]"
-        >
-          <HelpCircle className="h-5 w-5" />
-        </button>
+        <div className="flex items-center gap-3 text-[var(--muted-foreground)]">
+          <button
+            onClick={refreshAll}
+            disabled={balLoading}
+            aria-label="Refresh"
+            className="transition hover:text-[var(--foreground)] disabled:opacity-60"
+          >
+            <RefreshCw className={`h-4 w-4 ${balLoading ? "animate-spin" : ""}`} />
+          </button>
+          <button
+            onClick={() => setShowHelp(true)}
+            aria-label="How it works"
+            className="transition hover:text-[var(--foreground)]"
+          >
+            <HelpCircle className="h-5 w-5" />
+          </button>
+        </div>
+      </div>
+
+      {/* Standing — Crowns + score, above the tabs, always visible */}
+      <div className="flex items-stretch rounded-[var(--radius)] border border-[var(--border)] bg-[var(--card)]">
+        <div className="flex-1 py-2.5 text-center">
+          <div className="font-display text-2xl font-bold leading-none">
+            <Crowns value={fmt(crowns)} />
+          </div>
+          <div className="mt-1 text-[10px] uppercase tracking-wide text-[var(--muted-foreground)]">
+            Crowns to play
+          </div>
+        </div>
+        <div className="w-px bg-[var(--border)]" />
+        <div className="flex-1 py-2.5 text-center">
+          <div className="font-display text-2xl font-bold leading-none text-[var(--accent)]">
+            {fmt(collected)}
+          </div>
+          <div className="mt-1 text-[10px] uppercase tracking-wide text-[var(--muted-foreground)]">
+            score{players > 0 ? ` · ${players} beaten` : ""}
+          </div>
+        </div>
       </div>
 
       <Modal open={showHelp} onClose={() => setShowHelp(false)} title="How Stakemate works">
@@ -146,12 +189,11 @@ function AppHome({ onLichessChange }: { onLichessChange: (c: boolean) => void })
 
       {tab === "play" && (
         <div className="space-y-4">
-          <SummaryBar challenges={challenges} />
           <Button className="w-full" size="lg" onClick={() => setCreating(true)}>
             <Plus className="h-5 w-5" /> Create new challenge
           </Button>
-          <IncomingChallenges challenges={challenges} onChange={refresh} />
-          <ActiveGames challenges={challenges} onChange={refresh} />
+          <IncomingChallenges challenges={challenges} onChange={refreshAll} />
+          <ActiveGames challenges={challenges} onChange={refreshAll} />
         </div>
       )}
 
@@ -162,7 +204,7 @@ function AppHome({ onLichessChange }: { onLichessChange: (c: boolean) => void })
       <CreateChallenge
         open={creating}
         onClose={() => setCreating(false)}
-        onCreated={refresh}
+        onCreated={refreshAll}
       />
     </>
   );

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Crowns } from "@/components/ui/crown";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { opponentName } from "@/lib/challenge/collection";
+import { challengeBlurb, challengeLink } from "@/lib/share";
 import type { Challenge } from "@/lib/challenge/types";
 import { Clock, Copy, ExternalLink, Loader2, Swords } from "lucide-react";
 
@@ -97,11 +98,11 @@ export function ActiveGames({
     return () => clearInterval(t);
   }, []);
 
-  const copyLink = React.useCallback(async (id: string, url: string) => {
+  const copy = React.useCallback(async (key: string, text: string) => {
     try {
-      await navigator.clipboard.writeText(url);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId((c) => (c === id ? null : c)), 1500);
+      await navigator.clipboard.writeText(text);
+      setCopiedId(key);
+      setTimeout(() => setCopiedId((c) => (c === key ? null : c)), 1500);
     } catch {
       /* clipboard blocked */
     }
@@ -168,6 +169,27 @@ export function ActiveGames({
                   ? "Expired — reclaim your stake"
                   : `Waiting for ${them} to accept · ${formatRemaining(c.expiresAt - now)} left`}
               </p>
+              {!expired && (
+                <div className="space-y-1.5 rounded-lg bg-[var(--secondary)]/40 p-2.5">
+                  <p className="text-[11px] text-[var(--muted-foreground)]">
+                    Share this so {them} can accept — they’ll also see it when they open Stakemate.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" onClick={() => copy(`${c.id}:invite`, challengeBlurb(c))}>
+                      <Copy className="h-4 w-4" />
+                      {copiedId === `${c.id}:invite` ? "Copied" : "Copy invite"}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => copy(`${c.id}:link`, challengeLink(c.id))}
+                    >
+                      <Copy className="h-4 w-4" />
+                      {copiedId === `${c.id}:link` ? "Copied" : "Copy link"}
+                    </Button>
+                  </div>
+                </div>
+              )}
               <Button size="sm" variant="outline" disabled={busy} onClick={() => settle(c)}>
                 {busy ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
@@ -209,7 +231,7 @@ export function ActiveGames({
                         <ExternalLink className="h-4 w-4" /> Open on Lichess
                       </Button>
                     </a>
-                    <Button size="sm" variant="outline" onClick={() => copyLink(c.id, myUrl)}>
+                    <Button size="sm" variant="outline" onClick={() => copy(c.id, myUrl)}>
                       <Copy className="h-4 w-4" /> {copiedId === c.id ? "Copied" : "Copy link"}
                     </Button>
                   </div>
