@@ -2,9 +2,9 @@
  * The "collection" — derived purely from settled challenges, so it's always
  * consistent with what actually happened (no separate counter to drift).
  *
- * "Collected" = the count of other players' coins you've won: each settled win
- * collects the loser's stake. Rivals aggregates that per opponent with a
- * head-to-head record — the centerpiece of the game.
+ * Each win takes the loser's token, valued by their Lichess rating at game time
+ * (`result.value`). "Collected" sums those values into your score; Rivals breaks
+ * it down per opponent — the points you've taken from each, head-to-head.
  */
 import type { Challenge } from "@/lib/challenge/types";
 
@@ -50,12 +50,15 @@ export function computeCollection(challenges: Challenge[], myAddress: string): C
     const them = opponentName(c, myAddress);
     const r = get(them);
     const iWon = lc(c.result.winnerAddress) === me;
+    // The token's value = the loser's rating at game time (result.value). When I
+    // win I take theirs; when I lose they take mine (same field, my rating).
+    const value = c.result.value ?? 0;
     if (iWon) {
       r.wins += 1;
-      r.collected += c.stakeCrc;
+      r.collected += value;
     } else {
       r.losses += 1;
-      r.lost += c.stakeCrc;
+      r.lost += value;
     }
   }
 

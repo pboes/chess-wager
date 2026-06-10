@@ -5,6 +5,7 @@
  */
 import { getStore } from "@/lib/server/store";
 import { fetchGameResult } from "@/lib/lichess-game";
+import { fetchRating, speedCategory } from "@/lib/lichess";
 import { computePayoutAtto } from "@/lib/challenge/accounting";
 import { escrowPay, escrowTransferToken } from "@/lib/server/escrow-payout";
 import { stakeTokenId } from "@/lib/challenge/types";
@@ -118,12 +119,21 @@ export async function settleChallenge(id: string): Promise<SettleOutcome> {
     if (game.winner && playersMatch) {
       const winnerAddress =
         game.winner === "white" ? c.lichess.whiteAddress : c.lichess.blackAddress;
+      const winnerUsername = (game.winner === "white" ? game.white : game.black) ?? "";
+      const loserUsername = (game.winner === "white" ? game.black : game.white) ?? "";
+      // Value the won token by the loser's live rating in this game's category —
+      // beating a stronger player is worth more. This is the score.
+      const category = speedCategory(c.timeControl.limit, c.timeControl.increment);
+      const value = await fetchRating(loserUsername, category);
       result = {
         status: game.status,
         winnerColor: game.winner,
-        winnerUsername: game.winner === "white" ? game.white : game.black,
+        winnerUsername,
         winnerAddress,
+        loserUsername,
         outcome: "win",
+        category,
+        value,
       };
     } else {
       result = { status: game.status, outcome: playersMatch ? "draw" : "void" };
@@ -149,6 +159,11 @@ export async function settleChallenge(id: string): Promise<SettleOutcome> {
         c.payouts = payouts;
       }
       c.status = "settled";
+      // Credit the winner's all-time score with the token's value (once —
+      // we're inside the claimSettle guard).
+      if (result.winnerUsername && result.value) {
+        await store.addScore(result.winnerUsername, result.value);
+      }
     } else {
       c.refunds = await refundBoth(c);
       c.status = "void";

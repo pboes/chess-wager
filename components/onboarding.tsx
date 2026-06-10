@@ -81,11 +81,11 @@ export function Onboarding({
           </li>
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Challenge a friend — you both put coins on the line</span>
+            <span>Earn a point an hour — stake them on your challenges</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Play on Lichess — win and collect their coins</span>
+            <span>Beat stronger players to score more — climb the leaderboard</span>
           </li>
         </ul>
         <p className="text-xs text-[var(--muted-foreground)]">Two quick steps to get started:</p>

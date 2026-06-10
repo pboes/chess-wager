@@ -34,6 +34,13 @@ export interface StoreBackend {
   /** Challenges that invite a given Lichess username (the share-link targets). */
   listChallengesForUsername(username: string): Promise<Challenge[]>;
 
+  /** Add to a player's all-time score (sum of token values they've won). */
+  addScore(username: string, delta: number): Promise<void>;
+  /** Top scorers, highest first. */
+  topScores(limit: number): Promise<{ username: string; score: number }[]>;
+  /** Scores for specific usernames (0 if absent). */
+  scoresFor(usernames: string[]): Promise<Record<string, number>>;
+
   isTxUsed(txHash: string): Promise<boolean>;
   markTxUsed(txHash: string): Promise<void>;
   isGameUsed(gameId: string): Promise<boolean>;
@@ -67,6 +74,7 @@ const K = {
   challenge: (id: string) => `cw:challenge:${id}`,
   user: (a: string) => `cw:user:${a.toLowerCase()}`,
   invite: (u: string) => `cw:invite:${u.toLowerCase()}`,
+  leaderboard: "cw:leaderboard",
   usedtx: "cw:usedtx",
   usedgame: "cw:usedgame",
   settle: (id: string) => `cw:settle:${id}`,
@@ -117,6 +125,27 @@ class RedisBackend implements StoreBackend {
   }
   async listChallengesForUsername(username: string) {
     return this.challengesByIds(await this.redis.smembers(K.invite(username)));
+  }
+
+  async addScore(username: string, delta: number) {
+    await this.redis.zincrby(K.leaderboard, delta, username);
+  }
+  async topScores(limit: number) {
+    const flat = await this.redis.zrevrange(K.leaderboard, 0, limit - 1, "WITHSCORES");
+    const out: { username: string; score: number }[] = [];
+    for (let i = 0; i < flat.length; i += 2) {
+      out.push({ username: flat[i], score: Number(flat[i + 1]) });
+    }
+    return out;
+  }
+  async scoresFor(usernames: string[]) {
+    const out: Record<string, number> = {};
+    if (!usernames.length) return out;
+    const scores = await this.redis.zmscore(K.leaderboard, ...usernames);
+    usernames.forEach((u, i) => {
+      out[u] = scores[i] != null ? Number(scores[i]) : 0;
+    });
+    return out;
   }
 
   async isTxUsed(t: string) {
@@ -177,6 +206,7 @@ interface Doc {
   challenges: Record<string, Challenge>;
   userIndex: Record<string, string[]>;
   inviteIndex: Record<string, string[]>;
+  scores: Record<string, number>;
   usedtx: string[];
   usedgame: string[];
   settled: string[];
@@ -187,6 +217,7 @@ const emptyDoc = (): Doc => ({
   challenges: {},
   userIndex: {},
   inviteIndex: {},
+  scores: {},
   usedtx: [],
   usedgame: [],
   settled: [],
@@ -244,6 +275,24 @@ abstract class JsonDocBackend implements StoreBackend {
     const d = await this.load();
     const ids = d.inviteIndex[username.toLowerCase()] ?? [];
     return ids.map((id) => d.challenges[id]).filter((c): c is Challenge => !!c);
+  }
+  async addScore(username: string, delta: number) {
+    await this.mutate((d) => {
+      d.scores[username] = (d.scores[username] ?? 0) + delta;
+    });
+  }
+  async topScores(limit: number) {
+    const d = await this.load();
+    return Object.entries(d.scores)
+      .map(([username, score]) => ({ username, score }))
+      .sort((a, b) => b.score - a.score)
+      .slice(0, limit);
+  }
+  async scoresFor(usernames: string[]) {
+    const d = await this.load();
+    const out: Record<string, number> = {};
+    for (const u of usernames) out[u] = d.scores[u] ?? 0;
+    return out;
   }
 
   async isTxUsed(t: string) {

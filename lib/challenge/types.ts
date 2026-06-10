@@ -85,7 +85,13 @@ export interface ChallengeResult {
   winnerColor?: "white" | "black";
   winnerUsername?: string;
   winnerAddress?: string;
+  loserUsername?: string;
   outcome: "win" | "draw" | "void";
+  /** Lichess speed category the game was scored in (bullet/blitz/rapid…). */
+  category?: string;
+  /** Value of the token the winner took = the loser's rating in `category` at
+   *  settle time. This is what feeds the score / leaderboard. */
+  value?: number;
 }
 
 export interface Transfer {

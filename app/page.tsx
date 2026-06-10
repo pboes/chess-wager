@@ -9,7 +9,7 @@ import { SummaryBar } from "@/components/summary-bar";
 import { IncomingChallenges } from "@/components/incoming-challenges";
 import { CreateChallenge } from "@/components/create-challenge";
 import { ActiveGames } from "@/components/active-games";
-import { Rivals } from "@/components/rivals";
+import { Leaderboard } from "@/components/leaderboard";
 import { Profile } from "@/components/profile";
 import { Onboarding } from "@/components/onboarding";
 
@@ -62,11 +62,11 @@ export default function Home() {
   );
 }
 
-type Tab = "play" | "trophies" | "profile";
+type Tab = "play" | "board" | "profile";
 
 const TABS: { key: Tab; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: "play", label: "Challenges", icon: Swords },
-  { key: "trophies", label: "Trophies", icon: Trophy },
+  { key: "board", label: "Leaderboard", icon: Trophy },
   { key: "profile", label: "Profile", icon: User },
 ];
 
@@ -119,7 +119,7 @@ function AppHome({ onLichessChange }: { onLichessChange: (c: boolean) => void })
         </div>
       )}
 
-      {tab === "trophies" && <Rivals challenges={challenges} />}
+      {tab === "board" && <Leaderboard challenges={challenges} />}
 
       {tab === "profile" && <Profile onLichessChange={onLichessChange} />}
 

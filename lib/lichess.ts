@@ -67,6 +67,37 @@ export async function pkceChallenge(verifier: string): Promise<string> {
   return base64url(new Uint8Array(digest));
 }
 
+/**
+ * Lichess speed category for a clock, by estimated game duration
+ * (`limit + 40·increment` seconds) — the same bucketing Lichess uses. Determines
+ * which rating a won token is valued by.
+ */
+export function speedCategory(limitSec: number, incrementSec: number): string {
+  const est = limitSec + 40 * incrementSec;
+  if (est < 30) return "ultraBullet";
+  if (est < 180) return "bullet";
+  if (est < 480) return "blitz";
+  if (est < 1500) return "rapid";
+  return "classical";
+}
+
+/**
+ * A player's Lichess rating in a category (their perf rating). Used to value a
+ * token at the moment it's won. Falls back to 1500 (Lichess's default) if the
+ * player is unrated there or the lookup fails — a win should always score.
+ */
+export async function fetchRating(username: string, category: string): Promise<number> {
+  try {
+    const res = await fetch(`${LICHESS_HOST}/api/user/${encodeURIComponent(username)}`);
+    if (!res.ok) return 1500;
+    const u = await res.json();
+    const rating = u?.perfs?.[category]?.rating;
+    return typeof rating === "number" && rating > 0 ? rating : 1500;
+  } catch {
+    return 1500;
+  }
+}
+
 /** Public check that a Lichess username exists. Lenient: returns true on a
  *  network error so a transient outage can't block challenge creation. */
 export async function lichessUserExists(username: string): Promise<boolean> {
