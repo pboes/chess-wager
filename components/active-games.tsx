@@ -12,7 +12,7 @@ import { Clock, Copy, ExternalLink, Loader2, Swords } from "lucide-react";
 const STEPS = ["Accepted", "Play", "Settle"] as const;
 
 const currencyLabel = (c: Challenge) =>
-  (c.mode ?? "group") === "personal" ? "CRC" : "gCRC";
+  (c.mode ?? "group") === "personal" ? "pts" : "gCRC";
 
 function formatRemaining(ms: number): string {
   if (ms <= 0) return "expired";

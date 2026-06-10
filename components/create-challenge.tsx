@@ -104,7 +104,7 @@ export function CreateChallenge({
 
   const tc = TIME_CONTROLS.find((t) => t.key === tcKey) ?? TIME_CONTROLS[2];
   const stakeCrc = tc.stake;
-  const currency = mode === "personal" ? "CRC" : "gCRC";
+  const currency = mode === "personal" ? "pts" : "gCRC";
 
   const heldPersonal = attoToCrc(balances?.heldPersonalAtto) + attoToCrc(balances?.mintableAtto);
   const heldGroup = attoToCrc(balances?.heldGroupAtto);
@@ -314,7 +314,8 @@ export function CreateChallenge({
 
             {!enough && mode === "personal" && (
               <p className="text-xs text-[var(--muted-foreground)]">
-                Not enough personal CRC — you have {Math.floor(held)}. Pick a shorter game.
+                Not enough points — you have {Math.floor(held)}. Pick a shorter game, or wait —
+                you earn 1 an hour.
               </p>
             )}
             {!enough && mode === "group" && (
@@ -376,7 +377,7 @@ function ShareView({ challenge, onDone }: { challenge: Challenge; onDone: () => 
     <div className="space-y-3">
       <p className="text-sm text-[var(--muted-foreground)]">
         Your {challenge.stakeCrc}{" "}
-        {(challenge.mode ?? "group") === "personal" ? "CRC" : "gCRC"} is locked in. Send{" "}
+        {(challenge.mode ?? "group") === "personal" ? "points" : "gCRC"} are locked in. Send{" "}
         {challenge.targetUsername} this — they open it, connect Lichess, and accept.
       </p>
       <textarea

@@ -19,10 +19,10 @@ export function challengeLink(id: string): string {
 
 /** Ready-to-paste invite a challenger sends their friend (DM, chat, wherever). */
 export function challengeBlurb(c: Challenge): string {
-  const cur = (c.mode ?? "group") === "personal" ? "CRC" : "gCRC";
+  const cur = (c.mode ?? "group") === "personal" ? "points" : "gCRC";
   return (
     `♟ I'm challenging you to a ${c.timeControl.label} game on Stakemate — ` +
-    `${c.stakeCrc} ${cur} on the line, winner takes the other's coins.\n` +
+    `${c.stakeCrc} ${cur} on the line, winner takes the pot.\n` +
     `Accept here: ${challengeLink(c.id)}`
   );
 }
