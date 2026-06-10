@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@aboutcircles/miniapp-sdk':
-        specifier: ^0.1.44
-        version: 0.1.44
+        specifier: ^0.1.46
+        version: 0.1.46
       '@aboutcircles/sdk':
         specifier: ^0.1.43
         version: 0.1.43(typescript@5.9.3)
@@ -78,8 +78,8 @@ importers:
 
 packages:
 
-  '@aboutcircles/miniapp-sdk@0.1.44':
-    resolution: {integrity: sha512-nvfQKyjx5pWnEmRRBMIFwHooTdEDdqjFi/VP/VPBRm01FVtbVssTK98FX+Go8Yxz/+gRVR11h62pLrbM5hTZSg==}
+  '@aboutcircles/miniapp-sdk@0.1.46':
+    resolution: {integrity: sha512-niWeGqeYM07QDzoK9T8omcjdUFMq/dLMLyQS3Q/WFCQYxjgz0Ppp+8VtdUxKssbp/OBM508OqILKUhEJgUYqLQ==}
 
   '@aboutcircles/sdk-abis@0.1.43':
     resolution: {integrity: sha512-njNwtwzFxgfS52kPKARbLDdbzQzAhTXvsZZDf/Hgyuxq33BHZgGXfXtQJQlRc1fyhCxnPWfdebiy+ojftA6ILA==}
@@ -847,7 +847,7 @@ packages:
 
 snapshots:
 
-  '@aboutcircles/miniapp-sdk@0.1.44': {}
+  '@aboutcircles/miniapp-sdk@0.1.46': {}
 
   '@aboutcircles/sdk-abis@0.1.43(typescript@5.9.3)':
     dependencies:
