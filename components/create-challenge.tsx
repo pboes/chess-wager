@@ -7,7 +7,7 @@ import { useWallet } from "@/components/wallet/wallet-provider";
 import { useStake } from "@/hooks/use-stake";
 import { useBalances, attoToCrc } from "@/hooks/use-balances";
 import { TIME_CONTROLS, type Challenge } from "@/lib/challenge/types";
-import { challengeBlurb, challengeLink } from "@/lib/share";
+import { challengeBlurb } from "@/lib/share";
 import { Check, Copy, Loader2, Search, Swords, X } from "lucide-react";
 
 interface Suggestion {
@@ -327,10 +327,9 @@ export function CreateChallenge({
 /** After staking: hand the player a ready-to-send invite. */
 function ShareView({ challenge, onDone }: { challenge: Challenge; onDone: () => void }) {
   const blurb = challengeBlurb(challenge);
-  const link = challengeLink(challenge.id);
-  const [copied, setCopied] = React.useState<"blurb" | "link" | null>(null);
+  const [copied, setCopied] = React.useState<"blurb" | null>(null);
 
-  const copy = async (what: "blurb" | "link", text: string) => {
+  const copy = async (what: "blurb", text: string) => {
     try {
       await navigator.clipboard.writeText(text);
       setCopied(what);
@@ -352,16 +351,10 @@ function ShareView({ challenge, onDone }: { challenge: Challenge; onDone: () => 
         rows={3}
         className="w-full resize-none rounded-lg border border-[var(--border)] bg-[var(--secondary)]/40 p-2.5 text-xs"
       />
-      <div className="flex flex-wrap gap-2">
-        <Button size="sm" onClick={() => copy("blurb", blurb)}>
-          {copied === "blurb" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          {copied === "blurb" ? "Copied" : "Copy invite"}
-        </Button>
-        <Button size="sm" variant="outline" onClick={() => copy("link", link)}>
-          {copied === "link" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-          {copied === "link" ? "Copied" : "Copy link"}
-        </Button>
-      </div>
+      <Button className="w-full" onClick={() => copy("blurb", blurb)}>
+        {copied === "blurb" ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+        {copied === "blurb" ? "Invite copied" : "Copy invite"}
+      </Button>
       <Button variant="outline" className="w-full" onClick={onDone}>
         Done
       </Button>

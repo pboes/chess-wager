@@ -35,16 +35,45 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
   const [appData, setAppData] = React.useState<string | null>(null);
   const sdkRef = React.useRef<typeof import("@aboutcircles/miniapp-sdk") | null>(null);
 
-  // Rehydrate a previously-received share-link payload so it survives the
-  // onboarding round-trips (account creation, Lichess connect, reloads).
-  React.useEffect(() => {
+  const applyAppData = React.useCallback((v: string | null | undefined) => {
+    if (!v) return;
+    setAppData(v);
     try {
-      const saved = window.localStorage.getItem(APP_DATA_KEY);
-      if (saved) setAppData(saved);
+      window.localStorage.setItem(APP_DATA_KEY, v);
     } catch {
-      /* storage blocked — fine */
+      /* storage blocked — in-memory state still works this session */
     }
   }, []);
+
+  // Capture the share-link payload (a challenge id) as early and robustly as
+  // possible — the host may deliver it either way and an early message can't be
+  // missed if we listen synchronously:
+  //   1. our own URL `?data=` (host appends it to the iframe src, or direct link),
+  //   2. a previously-saved value (survives onboarding round-trips / reloads),
+  //   3. the host's `app_data` postMessage.
+  React.useEffect(() => {
+    try {
+      const fromUrl = new URLSearchParams(window.location.search).get("data");
+      if (fromUrl) {
+        applyAppData(fromUrl);
+        // Clean it from the URL so a later reload doesn't re-trigger.
+        const u = new URL(window.location.href);
+        u.searchParams.delete("data");
+        window.history.replaceState({}, "", u.toString());
+      } else {
+        const saved = window.localStorage.getItem(APP_DATA_KEY);
+        if (saved) setAppData(saved);
+      }
+    } catch {
+      /* fine */
+    }
+    const onMsg = (ev: MessageEvent) => {
+      const d = ev?.data;
+      if (d && d.type === "app_data" && typeof d.data === "string") applyAppData(d.data);
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, [applyAppData]);
 
   React.useEffect(() => {
     let unsubscribe: (() => void) | undefined;
@@ -64,16 +93,8 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
           setAddress(addr ?? null);
         });
 
-        // Share-link payload forwarded by the host (a challenge id). Persist it.
-        sdk.onAppData((data: string) => {
-          if (!data) return;
-          setAppData(data);
-          try {
-            window.localStorage.setItem(APP_DATA_KEY, data);
-          } catch {
-            /* storage blocked — in-memory state still works this session */
-          }
-        });
+        // Belt-and-suspenders: also take app_data via the SDK listener.
+        sdk.onAppData((data: string) => applyAppData(data));
       } catch (err) {
         console.warn("[wallet] miniapp-sdk unavailable:", err);
       }
@@ -83,7 +104,7 @@ export function WalletProvider({ children }: { children: React.ReactNode }) {
       cancelled = true;
       unsubscribe?.();
     };
-  }, []);
+  }, [applyAppData]);
 
   const clearAppData = React.useCallback(() => {
     setAppData(null);

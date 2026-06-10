@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Crowns } from "@/components/ui/crown";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { opponentName } from "@/lib/challenge/collection";
-import { challengeBlurb, challengeLink } from "@/lib/share";
+import { challengeBlurb } from "@/lib/share";
 import type { Challenge } from "@/lib/challenge/types";
 import { Clock, Copy, ExternalLink, Loader2, Swords } from "lucide-react";
 
@@ -174,20 +174,10 @@ export function ActiveGames({
                   <p className="text-[11px] text-[var(--muted-foreground)]">
                     Share this so {them} can accept — they’ll also see it when they open Stakemate.
                   </p>
-                  <div className="flex flex-wrap gap-2">
-                    <Button size="sm" onClick={() => copy(`${c.id}:invite`, challengeBlurb(c))}>
-                      <Copy className="h-4 w-4" />
-                      {copiedId === `${c.id}:invite` ? "Copied" : "Copy invite"}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => copy(`${c.id}:link`, challengeLink(c.id))}
-                    >
-                      <Copy className="h-4 w-4" />
-                      {copiedId === `${c.id}:link` ? "Copied" : "Copy link"}
-                    </Button>
-                  </div>
+                  <Button size="sm" onClick={() => copy(`${c.id}:invite`, challengeBlurb(c))}>
+                    <Copy className="h-4 w-4" />
+                    {copiedId === `${c.id}:invite` ? "Invite copied" : "Copy invite"}
+                  </Button>
                 </div>
               )}
               <Button size="sm" variant="outline" disabled={busy} onClick={() => settle(c)}>
