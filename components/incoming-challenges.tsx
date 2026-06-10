@@ -14,11 +14,10 @@ const amt = (c: Challenge) =>
   (c.mode ?? "group") === "personal" ? <Crowns value={c.stakeCrc} /> : <>{c.stakeCrc} gCRC</>;
 
 /**
- * Incoming challenges to accept — the loud, top-of-page call to action. Sources:
- *  - invites addressed to the player's Lichess username (server merges them into
- *    the challenge feed), and
- *  - a specific challenge from a share link (`appData` = challenge id), fetched
- *    directly if it isn't in the feed yet.
+ * Incoming challenges to accept — the loud, top-of-page call to action. Sourced
+ * from invites addressed to the player's Lichess username, which the server
+ * merges into the challenge feed; so they appear the moment the player opens
+ * Stakemate, no share-link needed.
  */
 export function IncomingChallenges({
   challenges,
@@ -27,42 +26,17 @@ export function IncomingChallenges({
   challenges: Challenge[];
   onChange: () => void;
 }) {
-  const { address, appData, clearAppData } = useWallet();
+  const { address } = useWallet();
   const { stake } = useStake();
   const me = address?.toLowerCase() ?? "";
   const [busyId, setBusyId] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
-  const [linked, setLinked] = React.useState<Challenge | null>(null);
 
-  // Invites addressed to me and still open (challenger ≠ me).
+  // Invites addressed to me and still open (challenger ≠ me). They reach my feed
+  // because the challenge is indexed by my Lichess username server-side.
   const incoming = challenges.filter(
     (c) => c.status === "created" && c.challenger.address !== me
   );
-
-  // Resolve a share-link challenge id that isn't already in the feed.
-  React.useEffect(() => {
-    if (!appData) {
-      setLinked(null);
-      return;
-    }
-    if (challenges.some((c) => c.id === appData)) {
-      setLinked(null); // already shown via the feed
-      return;
-    }
-    let off = false;
-    (async () => {
-      try {
-        const r = await fetch(`/api/challenge/${appData}`);
-        const d = await r.json();
-        if (!off && r.ok && d.challenge) setLinked(d.challenge);
-      } catch {
-        /* ignore */
-      }
-    })();
-    return () => {
-      off = true;
-    };
-  }, [appData, challenges]);
 
   const accept = React.useCallback(
     async (c: Challenge) => {
@@ -80,7 +54,6 @@ export function IncomingChallenges({
           });
           const d = await res.json();
           if (res.ok && d.challenge) {
-            clearAppData();
             onChange();
             return;
           }
@@ -93,18 +66,14 @@ export function IncomingChallenges({
         setBusyId(null);
       }
     },
-    [address, stake, onChange, clearAppData]
+    [address, stake, onChange]
   );
 
-  // The linked challenge, only if it's a fresh open invite not already in the feed.
-  const linkedOpen =
-    linked && linked.status === "created" && linked.challenger.address !== me ? linked : null;
-  const all = linkedOpen ? [linkedOpen, ...incoming] : incoming;
-  if (all.length === 0) return null;
+  if (incoming.length === 0) return null;
 
   return (
     <div className="space-y-2">
-      {all.map((c) => {
+      {incoming.map((c) => {
         const busy = busyId === c.id;
         return (
           <Card key={c.id} className="border-[var(--primary)] bg-[var(--primary)]/5">

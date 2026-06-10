@@ -1,27 +1,21 @@
 /**
- * Share-a-challenge links.
+ * Share-a-challenge invite.
  *
- * The actionable link is a **Circles-host deep-link**: the host forwards its
- * `?data=` query param into the miniapp iframe as an `app_data` message, which
- * the SDK surfaces via `onAppData`. We put the challenge id there, so opening the
- * link lands the friend in Stakemate (inside the host, where they can onboard)
- * with the invite already selected.
+ * No per-challenge deep-link: a challenge is indexed by the opponent's Lichess
+ * username, so it surfaces on their home screen the moment they open Stakemate
+ * (and connect that account). The invite is just a friendly message — addressed
+ * to the opponent — pointing at the app.
  */
 import type { Challenge } from "@/lib/challenge/types";
 
-/** The miniapp's slug inside the Circles host. */
+/** The miniapp's URL inside the Circles host. */
 export const MINIAPP_HOST_URL = "https://circles.gnosis.io/miniapps/stakemate";
 
-/** Deep-link that opens Stakemate in the host focused on a specific challenge. */
-export function challengeLink(id: string): string {
-  return `${MINIAPP_HOST_URL}?data=${encodeURIComponent(id)}`;
-}
-
-/** Ready-to-paste invite a challenger sends their friend (DM, chat, wherever). */
+/** Ready-to-paste invite a challenger sends their opponent (DM, chat, wherever). */
 export function challengeBlurb(c: Challenge): string {
   return (
-    `♟ I'm challenging you to a ${c.timeControl.label} game on Stakemate — ` +
-    `${c.stakeCrc} Crowns on the line, winner takes the pot.\n` +
-    `Accept here: ${challengeLink(c.id)}`
+    `♟ @${c.targetUsername} — I've set up a Lichess challenge for you on Stakemate: ` +
+    `${c.timeControl.label}, ${c.stakeCrc} Crowns on the line, winner takes the pot.\n` +
+    `Open ${MINIAPP_HOST_URL} to accept and match my stake!`
   );
 }
