@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Modal } from "@/components/ui/modal";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { computeCollection } from "@/lib/challenge/collection";
 import type { Challenge } from "@/lib/challenge/types";
-import { Loader2, Trophy } from "lucide-react";
+import { HelpCircle, Loader2, Trophy } from "lucide-react";
 
 type View = "global" | "friends" | "you";
 
@@ -29,6 +30,7 @@ export function Leaderboard({ challenges }: { challenges: Challenge[] }) {
   const [view, setView] = React.useState<View>("global");
   const [rows, setRows] = React.useState<Row[]>([]);
   const [loading, setLoading] = React.useState(false);
+  const [showHelp, setShowHelp] = React.useState(false);
 
   React.useEffect(() => {
     if (view === "you" || !address) return;
@@ -53,9 +55,18 @@ export function Leaderboard({ challenges }: { challenges: Challenge[] }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Trophy className="h-5 w-5 text-[var(--primary)]" />
-          Leaderboard
+        <CardTitle className="flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Trophy className="h-5 w-5 text-[var(--primary)]" />
+            Leaderboard
+          </span>
+          <button
+            onClick={() => setShowHelp(true)}
+            aria-label="How scoring works"
+            className="text-[var(--muted-foreground)] transition hover:text-[var(--foreground)]"
+          >
+            <HelpCircle className="h-4 w-4" />
+          </button>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -74,6 +85,25 @@ export function Leaderboard({ challenges }: { challenges: Challenge[] }) {
             </button>
           ))}
         </div>
+
+        <Modal open={showHelp} onClose={() => setShowHelp(false)} title="How scoring works">
+          <p>
+            Your <strong className="text-[var(--foreground)]">score</strong> is the combined value
+            of every opponent you’ve beaten.
+          </p>
+          <p>
+            A win is worth that player’s{" "}
+            <strong className="text-[var(--foreground)]">Lichess rating</strong> in the game’s
+            category (bullet, blitz or rapid) at the time you played. Beat a 2000 → +2000; beat a
+            1200 → +1200. Beating stronger players is worth more.
+          </p>
+          <p>
+            <strong className="text-[var(--foreground)]">Global</strong> ranks everyone.{" "}
+            <strong className="text-[var(--foreground)]">Friends</strong> ranks you and the players
+            you follow on Lichess. <strong className="text-[var(--foreground)]">You</strong> breaks
+            down the points you’ve taken, rival by rival.
+          </p>
+        </Modal>
 
         {view === "you" ? (
           <YouView challenges={challenges} />

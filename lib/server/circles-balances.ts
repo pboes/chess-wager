@@ -1,52 +1,70 @@
 /**
- * Read a Circles avatar's balances for the wallet view.
+ * Read an avatar's spendable **points** (personal CRC), authoritatively.
  *
- * `circles_getTokenBalances` (Circles RPC) returns every token the avatar holds
- * with its demurraged `attoCircles` value, the `tokenOwner` (whose CRC it is)
- * and an `isGroup` flag — so in one call we get:
- *   - held personal CRC  = sum of the avatar's *own* token (any wrapped form)
- *   - held group CRC      = sum of the score group's token
- *   - (held trophies)     = other humans' CRC (future: personal-mode winnings)
+ * Following the dAMS pilot (CirclesMiniapps `pilots/dams/circles.ts`): the
+ * numbers that gate play are read **straight from the Hub**, never synthesized
+ * from the indexer (which lags):
+ *   - personal CRC held as ERC1155      → Hub.balanceOf(addr, tokenId)
+ *   - personal minting rights (accrued) → Hub.calculateIssuance(addr)[0]
  *
- * Mintable (accrued-but-unminted) personal CRC comes from `Hub.calculateIssuance`.
+ * Points the user can stake right now = held personal CRC (ERC1155 + any wrapped
+ * ERC20 forms) + mintable. The wrapped-ERC20 amounts (demurraged / inflationary
+ * leftovers) are read off the indexer for their today-value, since their wrapper
+ * addresses live there; the ERC1155 + mintable core is direct from the Hub.
  *
- * Note: the permissionless-groups SDK is gCRC-only, so personal balances are read
- * here directly off the RPC / Hub.
+ * Group (gCRC) holdings stay indexer-derived — they're informational only.
  */
-import { createPublicClient, http, parseAbiItem, getAddress } from "viem";
+import { createPublicClient, http, getAddress, type Address } from "viem";
 import { gnosis } from "viem/chains";
 import { CIRCLES_RPC_URL, HUB_V2_ADDRESS, SCORE_GROUP_ADDRESS } from "@/lib/circles-config";
 
 const publicClient = createPublicClient({ chain: gnosis, transport: http(CIRCLES_RPC_URL) });
 
-const calculateIssuanceAbi = [
-  parseAbiItem(
-    "function calculateIssuance(address _human) view returns (uint256 issuance, uint256 startPeriod, uint256 endPeriod)"
-  ),
-];
+const hubAbi = [
+  {
+    type: "function",
+    name: "isHuman",
+    stateMutability: "view",
+    inputs: [{ name: "_human", type: "address" }],
+    outputs: [{ type: "bool" }],
+  },
+  {
+    type: "function",
+    name: "balanceOf",
+    stateMutability: "view",
+    inputs: [
+      { name: "_account", type: "address" },
+      { name: "_id", type: "uint256" },
+    ],
+    outputs: [{ type: "uint256" }],
+  },
+  {
+    type: "function",
+    name: "calculateIssuance",
+    stateMutability: "view",
+    inputs: [{ name: "_human", type: "address" }],
+    outputs: [{ type: "uint256" }, { type: "uint256" }, { type: "uint256" }],
+  },
+] as const;
 
 interface TokenBalance {
   tokenOwner?: string;
   attoCircles?: string;
   isGroup?: boolean;
+  isErc20?: boolean;
+  isWrapped?: boolean;
 }
 
 export interface Balances {
-  /** Demurraged atto-CRC of the avatar's own personal token (all forms). */
+  /** Today-value atto-CRC of the avatar's own personal token (ERC1155 + wrapped). */
   heldPersonalAtto: string;
-  /** Demurraged atto-CRC of the score group's token. */
+  /** Today-value atto-CRC of the score group's token (informational). */
   heldGroupAtto: string;
   /** Accrued-but-unminted personal CRC the avatar can mint now (atto). */
   mintableAtto: string;
 }
 
-export async function getBalances(address: string): Promise<Balances> {
-  const addr = getAddress(address);
-  const lc = addr.toLowerCase();
-  const group = SCORE_GROUP_ADDRESS.toLowerCase();
-
-  // All held tokens, with demurraged values.
-  let tokens: TokenBalance[] = [];
+async function indexerTokens(addr: string): Promise<TokenBalance[]> {
   try {
     const res = await fetch(CIRCLES_RPC_URL, {
       method: "POST",
@@ -59,33 +77,64 @@ export async function getBalances(address: string): Promise<Balances> {
       }),
     });
     const json = await res.json();
-    tokens = Array.isArray(json?.result) ? json.result : [];
+    return Array.isArray(json?.result) ? json.result : [];
   } catch {
-    tokens = [];
+    return [];
   }
+}
 
-  const sumWhere = (pred: (t: TokenBalance) => boolean) =>
-    tokens.filter(pred).reduce((a, t) => a + BigInt(t.attoCircles ?? "0"), 0n);
+export async function getBalances(address: string): Promise<Balances> {
+  const addr = getAddress(address);
+  const lc = addr.toLowerCase();
+  const group = SCORE_GROUP_ADDRESS.toLowerCase();
+  const tokenId = BigInt(addr); // Hub V2 token id == uint256(uint160(avatar))
 
-  const heldPersonal = sumWhere((t) => (t.tokenOwner ?? "").toLowerCase() === lc && !t.isGroup);
-  const heldGroup = sumWhere((t) => (t.tokenOwner ?? "").toLowerCase() === group);
+  // Authoritative, straight from the Hub.
+  const [isHuman, erc1155] = await Promise.all([
+    publicClient
+      .readContract({ address: HUB_V2_ADDRESS, abi: hubAbi, functionName: "isHuman", args: [addr] })
+      .catch(() => false),
+    publicClient
+      .readContract({
+        address: HUB_V2_ADDRESS,
+        abi: hubAbi,
+        functionName: "balanceOf",
+        args: [addr, tokenId],
+      })
+      .catch(() => 0n),
+  ]);
 
-  // Mintable accrued personal CRC (reverts if the human can't mint → 0).
+  // calculateIssuance reverts when there's nothing to mint yet — treat as 0.
   let mintable = 0n;
-  try {
-    const out = (await publicClient.readContract({
-      address: HUB_V2_ADDRESS,
-      abi: calculateIssuanceAbi,
-      functionName: "calculateIssuance",
-      args: [addr as `0x${string}`],
-    })) as readonly [bigint, bigint, bigint];
-    mintable = out[0];
-  } catch {
-    mintable = 0n;
+  if (isHuman) {
+    try {
+      const out = (await publicClient.readContract({
+        address: HUB_V2_ADDRESS,
+        abi: hubAbi,
+        functionName: "calculateIssuance",
+        args: [addr],
+      })) as readonly [bigint, bigint, bigint];
+      mintable = out[0];
+    } catch {
+      mintable = 0n;
+    }
   }
+
+  // Wrapped ERC20 personal CRC (demurraged / inflationary leftovers) + group, by
+  // today-value, from the indexer — wrapper addresses & group balances live here.
+  const tokens = await indexerTokens(addr);
+  const wrappedPersonal = tokens
+    .filter(
+      (t) =>
+        (t.tokenOwner ?? "").toLowerCase() === lc && !t.isGroup && t.isErc20 && t.isWrapped
+    )
+    .reduce((a, t) => a + BigInt(t.attoCircles ?? "0"), 0n);
+  const heldGroup = tokens
+    .filter((t) => (t.tokenOwner ?? "").toLowerCase() === group)
+    .reduce((a, t) => a + BigInt(t.attoCircles ?? "0"), 0n);
 
   return {
-    heldPersonalAtto: heldPersonal.toString(),
+    heldPersonalAtto: ((erc1155 as bigint) + wrappedPersonal).toString(),
     heldGroupAtto: heldGroup.toString(),
     mintableAtto: mintable.toString(),
   };

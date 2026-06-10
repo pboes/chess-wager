@@ -1,10 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, Plus, Swords, Trophy, User } from "lucide-react";
+import { HelpCircle, Loader2, Plus, Swords, Trophy, User } from "lucide-react";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { useChallenges } from "@/hooks/use-challenges";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 import { SummaryBar } from "@/components/summary-bar";
 import { IncomingChallenges } from "@/components/incoming-challenges";
 import { CreateChallenge } from "@/components/create-challenge";
@@ -82,9 +83,43 @@ function AppHome({ onLichessChange }: { onLichessChange: (c: boolean) => void })
   const incomingCount = challenges.filter(
     (c) => c.status === "created" && c.challenger.address !== me
   ).length;
+  const [showHelp, setShowHelp] = React.useState(false);
 
   return (
     <>
+      {/* Header */}
+      <div className="flex items-center justify-between px-1">
+        <h1 className="flex items-center gap-1.5 text-base font-bold">
+          <span className="text-[var(--primary)]">♟</span> Stakemate
+        </h1>
+        <button
+          onClick={() => setShowHelp(true)}
+          aria-label="How it works"
+          className="text-[var(--muted-foreground)] transition hover:text-[var(--foreground)]"
+        >
+          <HelpCircle className="h-5 w-5" />
+        </button>
+      </div>
+
+      <Modal open={showHelp} onClose={() => setShowHelp(false)} title="How Stakemate works">
+        <p>
+          It’s your Lichess games — <strong className="text-[var(--foreground)]">with stakes</strong>.
+        </p>
+        <p>
+          You earn <strong className="text-[var(--foreground)]">1 point an hour</strong>,
+          automatically. Stake them to challenge any Lichess player to a game.
+        </p>
+        <p>
+          <strong className="text-[var(--foreground)]">Win</strong> and you keep your points and
+          take your opponent’s. <strong className="text-[var(--foreground)]">Lose</strong> and you
+          forfeit your stake. Out of points? Wait a bit — they tick back up.
+        </p>
+        <p>
+          Your <strong className="text-[var(--foreground)]">score</strong> is the value of everyone
+          you’ve beaten — and beating stronger players is worth more. Climb the leaderboard.
+        </p>
+      </Modal>
+
       {/* Tab bar */}
       <div className="flex rounded-xl border border-[var(--border)] bg-[var(--card)] p-1">
         {TABS.map(({ key, label, icon: Icon }) => (
