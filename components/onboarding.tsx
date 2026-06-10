@@ -2,30 +2,19 @@
 
 import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { useWallet } from "@/components/wallet/wallet-provider";
 import { LichessConnect } from "@/components/lichess-connect";
+import { ConnectLichessFirst } from "@/components/connect-lichess-first";
 import { Modal } from "@/components/ui/modal";
-import { CheckCircle2, Loader2, Wallet } from "lucide-react";
+import { Loader2 } from "lucide-react";
 
-type StepState = "todo" | "active" | "done";
-
-function StepBadge({ n, state }: { n: number; state: StepState }) {
-  return (
-    <span
-      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-xs font-bold ${
-        state === "done"
-          ? "bg-[var(--accent)] text-white"
-          : state === "active"
-            ? "bg-[var(--primary)] text-white"
-            : "bg-[var(--secondary)] text-[var(--muted-foreground)]"
-      }`}
-    >
-      {state === "done" ? <CheckCircle2 className="h-4 w-4" /> : n}
-    </span>
-  );
-}
-
+/**
+ * Lichess-first onboarding. The headline action is "Connect your Lichess
+ * account" — under the hood that runs Lichess OAuth and then creates a passkey
+ * (the wallet), inheriting the Lichess username. Existing Circles users get a
+ * secondary "I already have an account" route. The flow shown is chosen by
+ * whether a wallet already exists.
+ */
 export function Onboarding({
   address,
   isMiniappHost,
@@ -38,167 +27,113 @@ export function Onboarding({
   onLichessChange: (connected: boolean) => void;
 }) {
   const { createAccount } = useWallet();
-  const [creating, setCreating] = React.useState(false);
+  const [loggingIn, setLoggingIn] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const [showInfo, setShowInfo] = React.useState(false);
 
-  const hasCircles = Boolean(address);
-
-  const create = React.useCallback(async () => {
+  // Existing Circles user logging in: open the host's log-in flow; the resulting
+  // address flips us into the "connect Lichess to this wallet" branch.
+  const loginExisting = React.useCallback(async () => {
     setError(null);
-    setCreating(true);
+    setLoggingIn(true);
     try {
-      // Resolves with the new registered account; onWalletChange also fires and
-      // advances the wizard. Called straight from this click (passkey gesture).
       await createAccount();
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Account creation was cancelled.");
+      setError(e instanceof Error ? e.message : "Log-in was cancelled.");
     } finally {
-      setCreating(false);
+      setLoggingIn(false);
     }
   }, [createAccount]);
 
   return (
     <div className="mx-auto w-full max-w-md space-y-4">
-      {/* Pitch */}
+      {/* Pitch — lead with Lichess */}
       <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/chess-puzzle-avatar-512.png"
-          alt="Stakemate"
-          className="h-16 w-16 rounded-2xl"
-        />
-        <h2 className="text-xl font-bold">Welcome to Stakemate</h2>
-        <p className="text-sm text-[var(--muted-foreground)]">It’s Lichess — with stakes.</p>
+        <img src="/chess-puzzle-avatar-512.png" alt="Stakemate" className="h-16 w-16 rounded-2xl" />
+        <h2 className="text-xl font-bold">Your Lichess games, with stakes</h2>
+        <p className="text-sm text-[var(--muted-foreground)]">
+          Challenge anyone on Lichess, put Crowns on the line, and climb the leaderboard.
+        </p>
         <ul className="space-y-1.5 text-left text-sm">
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Get a Circles account — your own currency, just for being you</span>
+            <span>Connect your Lichess account to start</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Connect it to your Lichess</span>
+            <span>Earn a Crown an hour — stake them on challenges</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Earn a Crown an hour — stake them on your challenges</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-[var(--primary)]">♟</span>
-            <span>Beat stronger players to score more — climb the leaderboard</span>
+            <span>Beat stronger players to score more</span>
           </li>
         </ul>
-        <p className="text-xs text-[var(--muted-foreground)]">Two quick steps to get started:</p>
       </div>
 
-      {/* Step 1 — Circles account */}
       <Card>
         <CardContent className="space-y-3 pt-5">
-          <div className="flex items-center gap-2">
-            <StepBadge n={1} state={hasCircles ? "done" : "active"} />
-            <h3 className="text-sm font-semibold">Your Circles account</h3>
-            <button
-              onClick={() => setShowInfo(true)}
-              className="ml-auto text-xs font-medium text-[var(--primary)] underline"
-            >
-              What’s Circles?
-            </button>
-          </div>
-          {hasCircles ? (
-            <p className="text-sm text-[var(--muted-foreground)]">
-              Ready — you can stake and get paid.{" "}
-              <span className="font-mono text-xs">
-                {address!.slice(0, 6)}…{address!.slice(-4)}
-              </span>
-            </p>
-          ) : !isMiniappHost ? (
+          {!isMiniappHost ? (
             <p className="text-sm text-[var(--muted-foreground)]">
               Open Stakemate inside the Circles app to get started.
             </p>
-          ) : (
+          ) : address ? (
+            // Wallet exists (returning user, or just logged in) → connect Lichess to it.
             <>
               <p className="text-sm text-[var(--muted-foreground)]">
-                This holds your stake and your winnings — quick to set up, with nothing to
-                write down.
+                Almost there — connect the Lichess account you’ll play with.
               </p>
-              <Button className="w-full" disabled={creating} onClick={create}>
-                {creating ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" /> Creating your account…
-                  </>
-                ) : (
-                  <>
-                    <Wallet className="h-4 w-4" /> Create my Circles account
-                  </>
-                )}
-              </Button>
+              <LichessConnect onConnectionChange={onLichessChange} />
+            </>
+          ) : (
+            // No wallet yet → Lichess-first: OAuth, then a passkey is created for you.
+            <>
+              <ConnectLichessFirst onConnected={() => onLichessChange(true)} />
+              <div className="flex items-center justify-between pt-1 text-xs">
+                <button
+                  onClick={loginExisting}
+                  disabled={loggingIn}
+                  className="font-medium text-[var(--primary)] underline disabled:opacity-60"
+                >
+                  {loggingIn ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" /> Opening…
+                    </span>
+                  ) : (
+                    "I already have a Circles account"
+                  )}
+                </button>
+                <button
+                  onClick={() => setShowInfo(true)}
+                  className="text-[var(--muted-foreground)] underline"
+                >
+                  What’s Circles?
+                </button>
+              </div>
               {error && <p className="text-xs text-[var(--destructive)]">{error}</p>}
             </>
           )}
         </CardContent>
       </Card>
 
-      {/* Step 2 — Lichess */}
-      <div className="space-y-2">
-        <div className="flex items-center gap-2 px-1">
-          <StepBadge
-            n={2}
-            state={lichessConnected ? "done" : hasCircles ? "active" : "todo"}
-          />
-          <h3
-            className={`text-sm font-semibold ${
-              hasCircles ? "" : "text-[var(--muted-foreground)]"
-            }`}
-          >
-            Your Lichess account
-          </h3>
-        </div>
-
-        {!hasCircles ? (
-          <Card>
-            <CardContent className="pt-5">
-              <p className="text-sm text-[var(--muted-foreground)]">
-                Create your Circles account first, then connect Lichess.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <>
-            <p className="px-1 text-xs text-[var(--muted-foreground)]">
-              Connect the Lichess account you’ll play with. No account yet? It’s free —
-              create one at{" "}
-              <a
-                href="https://lichess.org/signup"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="underline"
-              >
-                lichess.org/signup
-              </a>
-              , then come back and connect.
-            </p>
-            <LichessConnect onConnectionChange={onLichessChange} />
-          </>
-        )}
-      </div>
+      <p className="px-2 text-center text-[11px] text-[var(--muted-foreground)]">
+        No Lichess account? It’s free —{" "}
+        <a href="https://lichess.org/signup" target="_blank" rel="noopener noreferrer" className="underline">
+          lichess.org/signup
+        </a>
+        .
+      </p>
 
       <Modal open={showInfo} onClose={() => setShowInfo(false)} title="What’s Circles?">
         <p>
-          Circles is money you create yourself.{" "}
-          <strong className="text-[var(--foreground)]">
-            Everyone mints 1 personal CRC every hour
-          </strong>
-          , automatically — and those CRC are yours.
+          Circles is money you create yourself —{" "}
+          <strong className="text-[var(--foreground)]">everyone earns 1 personal CRC an hour</strong>.
+          In Stakemate those are your <strong className="text-[var(--foreground)]">Crowns</strong>: the
+          stake you put on your games.
         </p>
         <p>
-          People also pool into{" "}
-          <strong className="text-[var(--foreground)]">community currencies</strong>{" "}
-          (group CRC). You can turn your personal CRC into one, or buy it.
-        </p>
-        <p>
-          In Stakemate you’ll be able to stake{" "}
-          <strong className="text-[var(--foreground)]">either</strong> — your own personal
-          CRC, or a community currency.
+          Connecting Lichess sets up a Circles account for you automatically — a passkey on your
+          device, nothing to write down.
         </p>
         <a
           href="https://aboutcircles.com/"

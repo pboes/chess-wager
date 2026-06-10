@@ -78,11 +78,16 @@ export default async function FinalizePage({
     <main style={wrap}>
       <h1 style={{ fontSize: 20 }}>Connect Lichess</h1>
       <p style={{ color: "#6b6b80", maxWidth: 360 }}>
-        Linking Lichess to your Circles wallet{" "}
-        <code style={{ fontSize: 12 }}>
-          {h.address.slice(0, 6)}…{h.address.slice(-4)}
-        </code>
-        . Sign in with Lichess to finish.
+        {h.address ? (
+          <>
+            Linking Lichess to your Circles wallet{" "}
+            <code style={{ fontSize: 12 }}>
+              {h.address.slice(0, 6)}…{h.address.slice(-4)}
+            </code>
+            .{" "}
+          </>
+        ) : null}
+        Sign in with Lichess to finish.
       </p>
       <a style={btn} href={`/api/lichess/oauth/start?token=${token}`}>
         Sign in with Lichess →

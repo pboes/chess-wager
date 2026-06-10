@@ -78,26 +78,31 @@ export async function GET(req: Request) {
 
   if (!username || !lichessId) return fail("Could not read your Lichess account.");
 
-  // Enforce one Lichess account ↔ one Circles wallet.
-  const owner = await store.getLichessByLichessId(lichessId);
-  if (owner && owner.address.toLowerCase() !== h.address.toLowerCase()) {
-    return fail(
-      `Lichess account "${username}" is already linked to a different Circles wallet (${owner.address}).`
-    );
+  // Wallet-first flow: the wallet is already known, so enforce 1-to-1 and write
+  // the connection now. Lichess-first flow (no address yet): just capture the
+  // identity onto the handoff; /api/lichess/bind writes it once the wallet exists.
+  if (h.address) {
+    const owner = await store.getLichessByLichessId(lichessId);
+    if (owner && owner.address.toLowerCase() !== h.address.toLowerCase()) {
+      return fail(
+        `Lichess account "${username}" is already linked to a different Circles wallet (${owner.address}).`
+      );
+    }
+    const conn: LichessConnection = {
+      username,
+      lichessId,
+      address: h.address,
+      connectedAt: Date.now(),
+      sigVerified: h.sigVerified,
+      following,
+    };
+    await store.setLichess(h.address, conn);
   }
-
-  const conn: LichessConnection = {
-    username,
-    lichessId,
-    address: h.address,
-    connectedAt: Date.now(),
-    sigVerified: h.sigVerified,
-    following,
-  };
-  await store.setLichess(h.address, conn);
 
   h.status = "completed";
   h.username = username;
+  h.lichessId = lichessId;
+  h.following = following;
   await store.setHandoff(h);
 
   return NextResponse.redirect(finalize);

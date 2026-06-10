@@ -139,18 +139,28 @@ export interface LichessConnection {
   following?: string[];
 }
 
-/** Transient state carrying one connection attempt across the new-tab OAuth. */
+/** Transient state carrying one connection attempt across the new-tab OAuth.
+ *
+ * Two shapes:
+ *  - wallet-first (existing user): `address`/`signature` set up front; the OAuth
+ *    callback writes the connection directly.
+ *  - lichess-first (new user): no address yet — the callback only *captures* the
+ *    Lichess identity (`username`/`lichessId`/`following`); the wallet is created
+ *    afterwards and bound via `/api/lichess/bind`. */
 export interface LichessHandoff {
   token: string;
-  address: string; // lowercased
-  message: string;
-  signature: string;
+  address?: string; // lowercased; absent in the lichess-first flow
+  message?: string;
+  signature?: string;
   sigVerified: boolean;
   /** PKCE verifier + redirect, set when the OAuth tab starts. */
   codeVerifier?: string;
   redirectUri?: string;
   status: "pending" | "completed" | "failed";
   username?: string;
+  /** Captured in the lichess-first flow, to bind once the wallet exists. */
+  lichessId?: string;
+  following?: string[];
   error?: string;
   createdAt: number;
 }
