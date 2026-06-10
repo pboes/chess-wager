@@ -108,8 +108,9 @@ export function ConnectLichessFirst({ onConnected }: { onConnected: () => void }
     setError(null);
     setPhase("finishing");
     try {
-      // Passkey creation — must run in this click gesture.
-      const { address } = await createAccount();
+      // Passkey creation — must run in this click gesture. Pre-fill the account
+      // name with the connected Lichess username (host skips its name dialog).
+      const { address } = await createAccount(username ?? undefined);
       const nonce = randomString(8);
       const message = `Link my Lichess account to Circles ${address}\nnonce: ${nonce}`;
       const { signature } = await signMessage(message);
