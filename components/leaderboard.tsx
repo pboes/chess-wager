@@ -161,7 +161,7 @@ function YouView({ challenges }: { challenges: Challenge[] }) {
     <div className="space-y-3">
       <div className="rounded-lg bg-[var(--secondary)]/40 py-3 text-center">
         <div className="text-2xl font-bold tabular-nums text-[var(--accent)]">{fmt(collected)}</div>
-        <div className="text-[11px] text-[var(--muted-foreground)]">points taken from others</div>
+        <div className="text-[11px] text-[var(--muted-foreground)]">your score — won off rivals</div>
       </div>
       {rivals.length === 0 ? (
         <p className="py-2 text-center text-sm text-[var(--muted-foreground)]">

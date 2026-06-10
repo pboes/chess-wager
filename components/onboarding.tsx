@@ -81,7 +81,7 @@ export function Onboarding({
           </li>
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
-            <span>Earn a point an hour — stake them on your challenges</span>
+            <span>Earn a Crown an hour — stake them on your challenges</span>
           </li>
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>

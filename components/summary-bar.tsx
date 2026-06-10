@@ -24,7 +24,7 @@ export function SummaryBar({ challenges }: { challenges: Challenge[] }) {
         <div className="flex items-center gap-5">
           <div>
             <div className="text-lg font-bold tabular-nums">{fmt(toPlay)}</div>
-            <div className="text-[10px] text-[var(--muted-foreground)]">points to play</div>
+            <div className="text-[10px] text-[var(--muted-foreground)]">Crowns to play</div>
           </div>
           <div>
             <div className="text-lg font-bold tabular-nums text-[var(--accent)]">

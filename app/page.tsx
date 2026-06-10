@@ -106,13 +106,13 @@ function AppHome({ onLichessChange }: { onLichessChange: (c: boolean) => void })
           It’s your Lichess games — <strong className="text-[var(--foreground)]">with stakes</strong>.
         </p>
         <p>
-          You earn <strong className="text-[var(--foreground)]">1 point an hour</strong>,
+          You earn <strong className="text-[var(--foreground)]">1 Crown an hour</strong>,
           automatically. Stake them to challenge any Lichess player to a game.
         </p>
         <p>
-          <strong className="text-[var(--foreground)]">Win</strong> and you keep your points and
+          <strong className="text-[var(--foreground)]">Win</strong> and you keep your Crowns and
           take your opponent’s. <strong className="text-[var(--foreground)]">Lose</strong> and you
-          forfeit your stake. Out of points? Wait a bit — they tick back up.
+          forfeit your stake. Out of Crowns? Wait a bit — they tick back up.
         </p>
         <p>
           Your <strong className="text-[var(--foreground)]">score</strong> is the value of everyone

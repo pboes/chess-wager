@@ -8,7 +8,7 @@ import { useStake } from "@/hooks/use-stake";
 import type { Challenge } from "@/lib/challenge/types";
 import { Loader2, Swords } from "lucide-react";
 
-const currency = (c: Challenge) => ((c.mode ?? "group") === "personal" ? "pts" : "gCRC");
+const currency = (c: Challenge) => ((c.mode ?? "group") === "personal" ? "Crowns" : "gCRC");
 
 /**
  * Incoming challenges to accept — the loud, top-of-page call to action. Sources:
