@@ -33,6 +33,8 @@ export interface StoreBackend {
   addUserChallenge(address: string, id: string): Promise<void>;
   /** Challenges that invite a given Lichess username (the share-link targets). */
   listChallengesForUsername(username: string): Promise<Challenge[]>;
+  /** Every challenge in the store (admin/stats; scans all keys). */
+  listAllChallenges(): Promise<Challenge[]>;
 
   /** Add to a player's all-time score (sum of token values they've won). */
   addScore(username: string, delta: number): Promise<void>;
@@ -125,6 +127,18 @@ class RedisBackend implements StoreBackend {
   }
   async listChallengesForUsername(username: string) {
     return this.challengesByIds(await this.redis.smembers(K.invite(username)));
+  }
+  async listAllChallenges() {
+    const keys: string[] = [];
+    let cursor = "0";
+    do {
+      const [next, batch] = await this.redis.scan(cursor, "MATCH", "cw:challenge:*", "COUNT", 200);
+      cursor = next;
+      keys.push(...batch);
+    } while (cursor !== "0");
+    if (!keys.length) return [];
+    const raw = await this.redis.mget(...keys);
+    return raw.map((v) => parse<Challenge>(v)).filter((c): c is Challenge => !!c);
   }
 
   async addScore(username: string, delta: number) {
@@ -275,6 +289,9 @@ abstract class JsonDocBackend implements StoreBackend {
     const d = await this.load();
     const ids = d.inviteIndex[username.toLowerCase()] ?? [];
     return ids.map((id) => d.challenges[id]).filter((c): c is Challenge => !!c);
+  }
+  async listAllChallenges() {
+    return Object.values((await this.load()).challenges);
   }
   async addScore(username: string, delta: number) {
     await this.mutate((d) => {
