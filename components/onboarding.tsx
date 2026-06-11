@@ -5,16 +5,15 @@ import { Card, CardContent } from "@/components/ui/card";
 import { LichessConnect } from "@/components/lichess-connect";
 import { ConnectLichessFirst } from "@/components/connect-lichess-first";
 import { Crowns } from "@/components/ui/crown";
-import { Modal } from "@/components/ui/modal";
 
 /**
  * Lichess-first onboarding. The headline action is "Connect your Lichess
  * account" — under the hood that runs Lichess OAuth and then creates a passkey
  * (the wallet), inheriting the Lichess username.
  *
- * Existing Circles users don't need a separate "log in" button: inside the host
- * their wallet is already connected (`address` is set), so they land directly on
- * the "connect Lichess to this wallet" branch.
+ * Existing users don't need a separate "log in" button: inside the host their
+ * wallet is already connected (`address` is set), so they land directly on the
+ * "connect Lichess to this wallet" branch.
  */
 export function Onboarding({
   address,
@@ -26,8 +25,6 @@ export function Onboarding({
   lichessConnected: boolean | null;
   onLichessChange: (connected: boolean) => void;
 }) {
-  const [showInfo, setShowInfo] = React.useState(false);
-
   return (
     <div className="mx-auto w-full max-w-md space-y-4">
       {/* Pitch — lead with Lichess */}
@@ -41,7 +38,7 @@ export function Onboarding({
           <li className="flex items-start gap-2">
             <span className="text-[var(--primary)]">♟</span>
             <span>
-              Every player earns <Crowns value={1} /> an hour — no strings
+              Every player earns <Crowns value={1} /> an hour, automatically
             </span>
           </li>
           <li className="flex items-start gap-2">
@@ -57,12 +54,6 @@ export function Onboarding({
             </span>
           </li>
         </ul>
-        <p className="text-xs text-[var(--muted-foreground)]">
-          Stakemate uses Circles to track your <Crowns />.{" "}
-          <button onClick={() => setShowInfo(true)} className="font-medium text-[var(--link)] underline">
-            What’s Circles?
-          </button>
-        </p>
       </div>
 
       <Card>
@@ -72,8 +63,7 @@ export function Onboarding({
               Open Stakemate inside the Circles app to get started.
             </p>
           ) : address ? (
-            // Wallet already connected (returning / existing Circles user) → just
-            // connect Lichess to it.
+            // Wallet already connected (returning user) → just connect Lichess to it.
             <>
               <p className="text-sm text-[var(--muted-foreground)]">
                 Almost there — connect the Lichess account you’ll play with.
@@ -94,27 +84,6 @@ export function Onboarding({
         </a>
         .
       </p>
-
-      <Modal open={showInfo} onClose={() => setShowInfo(false)} title="What’s Circles?">
-        <p>
-          Circles is money you create yourself —{" "}
-          <strong className="text-[var(--foreground)]">everyone earns 1 personal CRC an hour</strong>.
-          In Stakemate those are your <strong className="text-[var(--foreground)]">Crowns</strong>: the
-          stake you put on your games.
-        </p>
-        <p>
-          Connecting Lichess sets up a Circles account for you automatically — a passkey on your
-          device, nothing to write down.
-        </p>
-        <a
-          href="https://aboutcircles.com/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="inline-flex font-medium text-[var(--link)] underline"
-        >
-          Learn more at aboutcircles.com →
-        </a>
-      </Modal>
     </div>
   );
 }
