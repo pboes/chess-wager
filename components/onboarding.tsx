@@ -4,16 +4,16 @@ import * as React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { LichessConnect } from "@/components/lichess-connect";
 import { ConnectLichessFirst } from "@/components/connect-lichess-first";
-import { Crowns } from "@/components/ui/crown";
+import { LandingCarousel } from "@/components/landing-carousel";
 
 /**
- * Lichess-first onboarding. The headline action is "Connect your Lichess
- * account" — under the hood that runs Lichess OAuth and then creates a passkey
- * (the wallet), inheriting the Lichess username.
+ * Lichess-first onboarding. Leads with reassurance (it's chess, not crypto), a
+ * how-it-works visual, and a peek at the real app — so a new player understands
+ * and trusts it before being asked to connect. The headline action runs Lichess
+ * OAuth and then creates a passkey, inheriting the Lichess username.
  *
- * Existing users don't need a separate "log in" button: inside the host their
- * wallet is already connected (`address` is set), so they land directly on the
- * "connect Lichess to this wallet" branch.
+ * Existing users skip straight to "connect Lichess to this wallet" because their
+ * wallet is already connected in the host (`address` is set).
  */
 export function Onboarding({
   address,
@@ -27,35 +27,28 @@ export function Onboarding({
 }) {
   return (
     <div className="mx-auto w-full max-w-md space-y-4">
-      {/* Pitch — lead with Lichess */}
-      <div className="flex flex-col items-center gap-3 rounded-2xl border border-[var(--border)] bg-[var(--card)] p-6 text-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/chess-puzzle-avatar-512.png" alt="Stakemate" className="h-16 w-16 rounded" />
-        <h2 className="font-display text-xl font-bold text-[var(--foreground)]">
+      {/* Hero — lead with chess + reassurance */}
+      <div className="flex flex-col items-center gap-2 pt-2 text-center">
+        <h2 className="font-display text-2xl font-bold text-[var(--foreground)]">
           Your Lichess games, with stakes
         </h2>
-        <ul className="space-y-1.5 text-left text-sm">
-          <li className="flex items-start gap-2">
-            <span className="text-[var(--primary)]">♟</span>
-            <span>
-              Every player earns <Crowns value={1} /> an hour, automatically
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-[var(--primary)]">♟</span>
-            <span>
-              Challenge anyone by staking your <Crowns />
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <span className="text-[var(--primary)]">♟</span>
-            <span>
-              Winner takes their stake back plus the loser’s <Crowns /> — for the trophy shelf
-            </span>
-          </li>
-        </ul>
+        <p className="text-sm text-[var(--muted-foreground)]">
+          Wager Crowns on your games and climb the leaderboard. No gambling, no tokens — just
+          bragging rights.
+        </p>
       </div>
 
+      {/* How it works — the visual carries the steps + the "not crypto" reassurance */}
+      <div className="overflow-hidden rounded-2xl border border-[var(--border)] bg-[var(--card)]">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/stakemate_how_it_works_portrait_4x5.svg"
+          alt="How Stakemate works: connect Lichess, challenge anyone, play on Lichess, win their Crowns."
+          className="w-full"
+        />
+      </div>
+
+      {/* The ask */}
       <Card>
         <CardContent className="space-y-3 pt-5">
           {!isMiniappHost ? (
@@ -76,6 +69,9 @@ export function Onboarding({
           )}
         </CardContent>
       </Card>
+
+      {/* Proof — a peek at the real app */}
+      <LandingCarousel />
 
       <p className="px-2 text-center text-[11px] text-[var(--muted-foreground)]">
         No Lichess account? It’s free —{" "}
