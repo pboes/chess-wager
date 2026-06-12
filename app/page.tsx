@@ -61,6 +61,12 @@ export default function Home() {
           onLichessChange={setLichessConnected}
         />
       )}
+      {/* TEMP diagnostic — shows which signal is missing when stuck on the landing. */}
+      <p className="select-all pt-2 text-center font-mono text-[10px] text-[var(--muted-foreground)]">
+        dbg host:{isMiniappHost ? "y" : "n"} · wallet:
+        {address ? `${address.slice(0, 6)}…${address.slice(-4)}` : "NONE"} · lichess:
+        {lichessConnected === null ? "…" : lichessConnected ? "y" : "n"}
+      </p>
     </div>
   );
 }
